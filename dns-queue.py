@@ -80,6 +80,7 @@ def main(dom, max_running_threads, outfile, overwrite):
         else:
             print("Overwriting output file {}".format(outfile))
     print("-: queue ckeck interval increased by {}%\n.: no change\n".format(INCREASE_PERCENT))
+    print("Press CTRL-C to gracefully stop")
 
     # this is the starting value - it will adjust it according to depletion rate
     sleep_time = 0.5
