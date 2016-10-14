@@ -6,14 +6,19 @@ PoC for distributing DNS queries
 from __future__ import print_function
 import argparse
 from collections import deque
+import itertools
 import random
+import string
 import sys
 import time
 import threading
 
 
-max_running_threads = 40
 INCREASE_PERCENT = 0.1
+MAX_DOMAIN_LEN = 3
+
+
+res = deque()
 
 
 class Prober(threading.Thread):
@@ -21,6 +26,7 @@ class Prober(threading.Thread):
         # invoke Thread.__init__
         super(Prober, self).__init__()
         # set the parameters needed for this thread e.g. hostname
+        print("Target: {}".format(target))
         self.target = target
         self.dns_server = dns_server
 
@@ -34,26 +40,37 @@ class Prober(threading.Thread):
         # using a normal distribution to simulate real work
         _will_take = abs(random.gauss(0, 1) * 5)
         time.sleep(_will_take)
+        res.append("{} done in {}s".format(self.target, _will_take))
         #
         # to here
         ###
 
 
-def fill(d, amount):
+def subdomain_gen():
+    """Generates all subdomains"""
+    for i in range(MAX_DOMAIN_LEN):
+        for p in itertools.permutations(string.lowercase, i + 1):
+            yield ''.join(p)
+
+
+sub = subdomain_gen()
+
+
+def fill(d, amount, dom):
     for i in range(amount):
         # add new probers, taking the hostnames from a list or a generator
-        t = Prober('dns_server', 'target')
+        t = Prober('dns_server', '{}.{}'.format(sub.next(), dom))
         t.start()
         d.append(t)
 
 
-def main(max_running_threads):
+def main(dom, max_running_threads):
     print("-: increase queue ckeck interval by {}%\n.: no change\n".format(INCREASE_PERCENT))
     # this is the starting value - it will adjust it according to depletion rate
     sleep_time = 0.5
 
     d = deque()
-    fill(d, max_running_threads)
+    fill(d, max_running_threads, dom)
 
     # for plotting
     # ql = deque()
@@ -91,7 +108,7 @@ def main(max_running_threads):
                 print('.', end="")
                 # pass
 
-            fill(d, delta)
+            fill(d, delta, dom)
             previous_len = len(d)
 
         except KeyboardInterrupt:
@@ -100,6 +117,10 @@ def main(max_running_threads):
         finally:
             sys.stdout.flush()
 
+    for el in range(len(d)):
+        t = d.popleft()
+        t.join()
+    print(res)
     # use: gnuplot 'plot "data.txt" with lines' to see queue
     # with open('data.txt', 'w') as f:
     #     for i, el in enumerate(ql):
@@ -108,6 +129,7 @@ def main(max_running_threads):
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser()
+    parser.add_argument("domain")
     parser.add_argument("max_running_threads", type=int)
     args = parser.parse_args()
-    main(args.max_running_threads)
+    main(args.domain, args.max_running_threads)
