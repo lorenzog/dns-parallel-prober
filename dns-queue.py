@@ -65,6 +65,13 @@ def subdomain_gen():
             yield ''.join(p)
 
 
+def subdomain_fromlist(the_list):
+    """A generator that yields the content from a file"""
+    with open(the_list) as f:
+        for line in f.readlines():
+            yield line.replace('\n', '')
+
+
 def fill(d, amount, dom, sub):
     for i in range(amount):
         # calls next() on the generator to get the next iteration (or next subdomain)
@@ -73,28 +80,37 @@ def fill(d, amount, dom, sub):
         d.append(t)
 
 
-def main(dom, max_running_threads, outfile, overwrite):
+def main(dom, max_running_threads, outfile, overwrite, infile):
     if os.path.exists(outfile):
         if overwrite is False:
             raise SystemExit("Specified file {} exists and overwrite option (-f) not set".format(outfile))
         else:
             print("Overwriting output file {}".format(outfile))
     print("-: queue ckeck interval increased by {}%\n.: no change\n".format(INCREASE_PERCENT))
-    print("Press CTRL-C to gracefully stop")
 
     # this is the starting value - it will adjust it according to depletion rate
     sleep_time = 0.5
 
     # the main queue containing all threads
     d = deque()
-    # the subdomain generator
-    sub = subdomain_gen()
 
-    # fill the queue ip to max for now
-    fill(d, max_running_threads, dom, sub)
+    if infile is None:
+        # the subdomain generator
+        sub = subdomain_gen()
+    else:
+        if not os.path.exists(infile):
+            raise SystemExit("{} not found".format(infile))
+        sub = subdomain_fromlist(infile)
+
+    try:
+        # fill the queue ip to max for now
+        fill(d, max_running_threads, dom, sub)
+        print("Press CTRL-C to gracefully stop")
+        running = True
+    except StopIteration:
+        running = False
 
     previous_len = len(d)
-    running = True
     while running:
         try:
             time.sleep(sleep_time)
@@ -121,11 +137,14 @@ def main(dom, max_running_threads, outfile, overwrite):
             previous_len = len(d)
 
         except KeyboardInterrupt:
-            print("\nPlease wait for all threads to finish...")
+            running = False
+        except StopIteration:
+            print("\nAaaand we're done!")
             running = False
         finally:
             sys.stdout.flush()
 
+    print("\nPlease wait for all threads to finish...")
     # waiting for all threads to finish, popping them one by one and join() each...
     for el in range(len(d)):
         t = d.popleft()
@@ -142,5 +161,6 @@ if __name__ == '__main__':
     parser.add_argument("max_running_threads", type=int)
     parser.add_argument("savefile", default="out.txt")
     parser.add_argument("-f", "--force-overwrite", default=False, action='store_true')
+    parser.add_argument("-i", "--use-list", help="Reads the list from a file", default=None)
     args = parser.parse_args()
-    main(args.domain, args.max_running_threads, args.savefile, args.force_overwrite)
+    main(args.domain, args.max_running_threads, args.savefile, args.force_overwrite, args.use_list)

@@ -19,5 +19,9 @@ Usage:
 
     python dns-queue example.com 10 out.txt
 
+If you want to read the subdomains frmo a list, do:
+
+    python dns-queue example.com 10 out.txt -i list.txt
+
 Press ctrl-c to stop - it will wait for the last threads to finish and
 write all results to `out.txt`.
