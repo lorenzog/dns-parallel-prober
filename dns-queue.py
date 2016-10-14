@@ -17,11 +17,12 @@ INCREASE_PERCENT = 0.1
 
 
 class Prober(threading.Thread):
-    def __init__(self, dns_host):
+    def __init__(self, dns_server, target):
         # invoke Thread.__init__
         super(Prober, self).__init__()
         # set the parameters needed for this thread e.g. hostname
-        self.dns_host = dns_host
+        self.target = target
+        self.dns_server = dns_server
 
     def run(self):
         # this simulates how long the DNS query will take; substitute with the
@@ -41,7 +42,7 @@ class Prober(threading.Thread):
 def fill(d, amount):
     for i in range(amount):
         # add new probers, taking the hostnames from a list or a generator
-        t = Prober('another_host')
+        t = Prober('dns_server', 'target')
         t.start()
         d.append(t)
 
