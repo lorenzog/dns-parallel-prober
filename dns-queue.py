@@ -4,6 +4,7 @@ PoC for distributing DNS queries
 
 """
 from __future__ import print_function
+import argparse
 from collections import deque
 import random
 import sys
@@ -11,7 +12,7 @@ import time
 import threading
 
 
-MIN_DNS_SERVERS = 40
+max_running_threads = 40
 INCREASE_PERCENT = 0.1
 
 
@@ -45,16 +46,17 @@ def fill(d, amount):
         d.append(t)
 
 
-def main():
+def main(max_running_threads):
+    print("-: increase queue ckeck interval by {}%\n.: no change\n".format(INCREASE_PERCENT))
     # this is the starting value - it will adjust it according to depletion rate
     sleep_time = 0.5
 
     d = deque()
-    fill(d, MIN_DNS_SERVERS)
+    fill(d, max_running_threads)
 
     # for plotting
-    ql = deque()
-    ql.append(len(d))
+    # ql = deque()
+    # ql.append(len(d))
 
     previous_len = len(d)
     running = True
@@ -73,10 +75,10 @@ def main():
             # calculate how fast the queue has been changind
             delta = previous_len - len(d)
             rate = delta / sleep_time
-            print('\tq: {}\tdelta: {}\trate: {}\t{}s'.format(len(d), delta, rate, sleep_time))
-            ql.append(len(d))
+            # print('\tq: {}\tdelta: {}\trate: {}\t{}s'.format(len(d), delta, rate, sleep_time))
+            # ql.append(len(d))
 
-            if rate > 0 and delta > MIN_DNS_SERVERS / 10:
+            if rate > 0 and delta > max_running_threads / 10:
                 sleep_time -= (sleep_time * INCREASE_PERCENT)
                 print('+', end="")
             else:
@@ -97,11 +99,14 @@ def main():
         finally:
             sys.stdout.flush()
 
-    with open('data.txt', 'w') as f:
-        for i, el in enumerate(ql):
-            f.write('{} {}\n'.format(i, el))
+    # use: gnuplot 'plot "data.txt" with lines' to see queue
+    # with open('data.txt', 'w') as f:
+    #     for i, el in enumerate(ql):
+    #         f.write('{} {}\n'.format(i, el))
 
 
 if __name__ == '__main__':
-    print("+: increase sleep time by {}%\n-:decrease sleep time by {}\n.: no change\n".format(INCREASE_PERCENT, INCREASE_PERCENT))
-    main()
+    parser = argparse.ArgumentParser()
+    parser.add_argument("max_running_threads", type=int)
+    args = parser.parse_args()
+    main(args.max_running_threads)
