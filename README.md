@@ -6,9 +6,10 @@ queue of threads and tasks each one to probe a sub-domain of the given
 root domain. At every iteration step each dead thread is removed and the
 queue is replenished as necessary.
 
-Please note that no DNS query is actually performed: all that each
-thread does is wait a (normally distributed) amount of time and report
-on itself. You'll have to write your own code for that.
+PLEASE NOTE this script actually does start probing DNS servers so use
+at your own risk. You are likely to get blacklisted and/or saturate your
+bandwidth. Whatever you do, it's your responsibility to make sure you
+have approval for it.
 
 The key thing is that the iteration frequency is dynamically adapted to
 the depletion speed, i.e. the faster the threads complete the sooner new
