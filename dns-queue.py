@@ -19,8 +19,10 @@ import dns.resolver
 INCREASE_PERCENT = 0.1
 MAX_DOMAIN_LEN = 3
 
-# valid domain names allow ASCII letters, digits and hyphen (and are case insensitive)
-# however see http://stackoverflow.com/questions/7111881/what-are-the-allowed-characters-in-a-sub-domain
+# valid domain names allow ASCII letters, digits and hyphen (and are case
+# insensitive)
+# however see
+# http://stackoverflow.com/questions/7111881/what-are-the-allowed-characters-in-a-sub-domain
 # and https://en.wikipedia.org/wiki/Domain_name#Internationalized_domain_names
 ALPHABET = ''.join([
     string.lowercase,
@@ -32,15 +34,20 @@ ALPHABET = ''.join([
 
 
 res = deque()
-ns = []
-resolve = dns.resolver.Resolver()
+# ns = []
+# resolve = dns.resolver.Resolver()
+
 
 class Prober(threading.Thread):
     def __init__(self, dns_server, target):
         # invoke Thread.__init__
         super(Prober, self).__init__()
         self.target = target
-        self.dns_server = dns_server
+        # self.dns_server = dns_server
+
+        # XXX creates a Resolver object at every step - might not be optimal
+        self.resolver = dns.resolver.Resolver()
+        self.resolver.nameservers = dns_server
 
     def run(self):
         # this simulates how long the DNS query will take; substitute with the
@@ -50,20 +57,22 @@ class Prober(threading.Thread):
         # remove from here
         #
         # using a normal distribution to simulate real work
-        #_will_take = abs(random.gauss(0, 1) * 5)
-        #time.sleep(_will_take)
+        # _will_take = abs(random.gauss(0, 1) * 5)
+        # time.sleep(_will_take)
         #
         # to here
         ###
-        resolve.nameservers = [item.address for item in resolve.query(self.dns_server)]
+        # resolve.nameservers = [item.address for item in resolve.query(
+        #   self.dns_server)]
         try:
-            answer = resolve.query(self.target)
+            answer = self.resolver.query(self.target)
             for data in answer:
-                print ('{} | {}'.format(self.target, data))
+                print('{} | {}'.format(self.target, data))
         except Exception as e:
-            a = e
+            print("Exception in thread {} when querying {}: {}".format(
+                self.name, self.target, e))
         # then append the result to some form of storage
-        #res.append("{} done in {}s".format(self.target, _will_take))
+        # res.append("{} done in {}s".format(self.target, _will_take))
 
 
 def subdomain_gen():
@@ -80,10 +89,11 @@ def subdomain_fromlist(the_list):
             yield line.replace('\n', '')
 
 
-def fill(d, amount, dom, sub, ns):
+def fill(d, amount, dom, sub, nsvrs):
     for i in range(amount):
-        # calls next() on the generator to get the next iteration (or next subdomain)
-        t = Prober(ns, '{}.{}'.format(sub.next(), dom))
+        # calls next() on the generator to get the next iteration (or next
+        # subdomain)
+        t = Prober(random.choice(nsvrs), '{}.{}'.format(sub.next(), dom))
         t.start()
         d.append(t)
 
@@ -91,12 +101,17 @@ def fill(d, amount, dom, sub, ns):
 def main(dom, max_running_threads, outfile, overwrite, infile, nsvrs):
     if os.path.exists(outfile):
         if overwrite is False:
-            raise SystemExit("Specified file {} exists and overwrite option (-f) not set".format(outfile))
+            raise SystemExit(
+                "Specified file {} exists and overwrite "
+                "option (-f) not set".format(outfile))
         else:
             print("Overwriting output file {}".format(outfile))
-    #print("-: queue ckeck interval increased by {}%\n.: no change\n".format(INCREASE_PERCENT))
+    # print(
+    #     "-: queue ckeck interval increased by {}%\n.: "
+    #     "no change\n".format(INCREASE_PERCENT))
 
-    # this is the starting value - it will adjust it according to depletion rate
+    # this is the starting value - it will adjust it according to depletion
+    # rate
     sleep_time = 0.5
 
     # the main queue containing all threads
@@ -113,9 +128,9 @@ def main(dom, max_running_threads, outfile, overwrite, infile, nsvrs):
     try:
 
         # fill the queue ip to max for now
-    #    nsvrs = dns.resolver.query(dom, 'NS')
-        ns = str(nsvrs[random.randint(0, len(nsvrs)-1)])[:-1]
-        fill(d, max_running_threads, dom, sub, ns)
+        #    nsvrs = dns.resolver.query(dom, 'NS')
+        # ns = str(nsvrs[random.randint(0, len(nsvrs)-1)])[:-1]
+        fill(d, max_running_threads, dom, sub, nsvrs)
         print("Press CTRL-C to gracefully stop")
         running = True
     except StopIteration:
@@ -135,16 +150,17 @@ def main(dom, max_running_threads, outfile, overwrite, infile, nsvrs):
             # calculate how fast the queue has been changind
             delta = previous_len - len(d)
             rate = delta / sleep_time
-            # print('\tq: {}\tdelta: {}\trate: {}\t{}s'.format(len(d), delta, rate, sleep_time))
+            # print('\tq: {}\tdelta: {}\trate: {}\t{}s'.format(
+            #     len(d), delta, rate, sleep_time))
 
             if rate > 0 and delta > max_running_threads / 10:
                 sleep_time -= (sleep_time * INCREASE_PERCENT)
-                #print('+', end="")
+                # print('+', end="")
             else:
                 sleep_time += (sleep_time * INCREASE_PERCENT)
-               # print('.', end="")
+                # print('.', end="")
 
-            fill(d, delta, dom, sub, ns)
+            fill(d, delta, dom, sub, nsvrs)
             previous_len = len(d)
 
         except KeyboardInterrupt:
@@ -156,7 +172,8 @@ def main(dom, max_running_threads, outfile, overwrite, infile, nsvrs):
             sys.stdout.flush()
 
     print("\nPlease wait for all threads to finish...")
-    # waiting for all threads to finish, popping them one by one and join() each...
+    # waiting for all threads to finish, popping them one by one and join()
+    # each...
     for el in range(len(d)):
         t = d.popleft()
         t.join()
@@ -171,8 +188,17 @@ if __name__ == '__main__':
     parser.add_argument("domain")
     parser.add_argument("max_running_threads", type=int)
     parser.add_argument("savefile", default="out.txt")
-    parser.add_argument("-f", "--force-overwrite", default=False, action='store_true')
-    parser.add_argument("-i", "--use-list", help="Reads the list from a file", default=None)
+    parser.add_argument(
+        "-f", "--force-overwrite", default=False,
+        action='store_true')
+    parser.add_argument(
+        "-i", "--use-list", help="Reads the list from a file",
+        default=None)
     args = parser.parse_args()
     nsvrs = dns.resolver.query(args.domain, 'NS')
-    main(args.domain, args.max_running_threads, args.savefile, args.force_overwrite, args.use_list, nsvrs)
+    main(
+        args.domain,
+        args.max_running_threads,
+        args.savefile,
+        args.force_overwrite,
+        args.use_list, nsvrs)
