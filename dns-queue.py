@@ -7,8 +7,10 @@ from __future__ import print_function
 import argparse
 from collections import deque
 import itertools
+import logging
 import os
 import random
+import socket
 import string
 import sys
 import time
@@ -32,6 +34,11 @@ ALPHABET = ''.join([
     # add here unicode characters sets
 ])
 
+log = logging.getLogger(__name__)
+sh = logging.StreamHandler()
+sh.setFormatter(logging.Formatter())
+log.addHandler(sh)
+
 
 res = deque()
 # ns = []
@@ -43,11 +50,7 @@ class Prober(threading.Thread):
         # invoke Thread.__init__
         super(Prober, self).__init__()
         self.target = target
-        # self.dns_server = dns_server
-
-        # XXX creates a Resolver object at every step - might not be optimal
-        self.resolver = dns.resolver.Resolver()
-        self.resolver.nameservers = dns_server
+        self.dns_server = dns_server
 
     def run(self):
         # this simulates how long the DNS query will take; substitute with the
@@ -64,10 +67,16 @@ class Prober(threading.Thread):
         ###
         # resolve.nameservers = [item.address for item in resolve.query(
         #   self.dns_server)]
+        resolver = dns.resolver.Resolver()
         try:
-            answer = self.resolver.query(self.target)
+            log.debug("Resolving {} with nameserver {}".format(
+                self.target, self.dns_server))
+            resolver.nameservers = self.dns_server
+            answer = resolver.query(self.target)
             for data in answer:
                 print('{} | {}'.format(self.target, data))
+        except dns.resolver.NXDOMAIN:
+            print("nope: {}".format(self.target))
         except Exception as e:
             print("Exception in thread {} when querying {}: {}".format(
                 self.name, self.target, e))
@@ -147,7 +156,7 @@ def main(dom, max_running_threads, outfile, overwrite, infile, nsvrs):
                     # put it back in the queue until next iteration
                     d.append(_t)
 
-            # calculate how fast the queue has been changind
+            # calculate how fast the queue has been changing
             delta = previous_len - len(d)
             rate = delta / sleep_time
             # print('\tq: {}\tdelta: {}\trate: {}\t{}s'.format(
@@ -194,11 +203,21 @@ if __name__ == '__main__':
     parser.add_argument(
         "-i", "--use-list", help="Reads the list from a file",
         default=None)
+    parser.add_argument('-d', '--debug', action='store_true')
     args = parser.parse_args()
+
+    if args.debug:
+        log.setLevel(logging.DEBUG)
+        log.debug("Debug logging enabled")
+
     nsvrs = dns.resolver.query(args.domain, 'NS')
+    _nsvrs = list()
+    for ns in nsvrs:
+        _nsvrs.append(socket.gethostbyname(str(ns)[:-1]))
+    log.debug('Using name servers: {}'.format(_nsvrs))
     main(
         args.domain,
         args.max_running_threads,
         args.savefile,
         args.force_overwrite,
-        args.use_list, nsvrs)
+        args.use_list, _nsvrs)
