@@ -38,6 +38,7 @@ log = logging.getLogger(__name__)
 sh = logging.StreamHandler()
 sh.setFormatter(logging.Formatter())
 log.addHandler(sh)
+log.setLevel(logging.INFO)
 
 
 res = deque()
@@ -69,16 +70,18 @@ class Prober(threading.Thread):
         #   self.dns_server)]
         resolver = dns.resolver.Resolver()
         try:
-            log.debug("Resolving {} with nameserver {}".format(
-                self.target, self.dns_server))
-            resolver.nameservers = self.dns_server
+            log.debug("{}: Resolving {} with nameserver {}".format(
+                self.name, self.target, self.dns_server))
+            # it's a list
+            resolver.nameservers = [self.dns_server, ]
             answer = resolver.query(self.target)
             for data in answer:
-                print('{} | {}'.format(self.target, data))
-        except dns.resolver.NXDOMAIN:
-            print("nope: {}".format(self.target))
-        except Exception as e:
-            print("Exception in thread {} when querying {}: {}".format(
+                out = '{} | {}'.format(self.target, data)
+                res.append(out)
+                log.info(out)
+        except dns.exception.DNSException as e:
+            log.info(" --nope-- | {}".format(self.target))
+            log.debug("Error in thread {} when querying {}: {}".format(
                 self.name, self.target, e))
         # then append the result to some form of storage
         # res.append("{} done in {}s".format(self.target, _will_take))
@@ -114,7 +117,7 @@ def main(dom, max_running_threads, outfile, overwrite, infile, nsvrs):
                 "Specified file {} exists and overwrite "
                 "option (-f) not set".format(outfile))
         else:
-            print("Overwriting output file {}".format(outfile))
+            log.info("Overwriting output file {}".format(outfile))
     # print(
     #     "-: queue ckeck interval increased by {}%\n.: "
     #     "no change\n".format(INCREASE_PERCENT))
@@ -140,7 +143,7 @@ def main(dom, max_running_threads, outfile, overwrite, infile, nsvrs):
         #    nsvrs = dns.resolver.query(dom, 'NS')
         # ns = str(nsvrs[random.randint(0, len(nsvrs)-1)])[:-1]
         fill(d, max_running_threads, dom, sub, nsvrs)
-        print("Press CTRL-C to gracefully stop")
+        log.info("Press CTRL-C to gracefully stop")
         running = True
     except StopIteration:
         running = False
@@ -175,12 +178,12 @@ def main(dom, max_running_threads, outfile, overwrite, infile, nsvrs):
         except KeyboardInterrupt:
             running = False
         except StopIteration:
-            print("\nAaaand we're done!")
+            log.info("\nAaaand we're done!")
             running = False
         finally:
             sys.stdout.flush()
 
-    print("\nPlease wait for all threads to finish...")
+    log.info("\nPlease wait for all threads to finish...")
     # waiting for all threads to finish, popping them one by one and join()
     # each...
     for el in range(len(d)):
@@ -189,7 +192,7 @@ def main(dom, max_running_threads, outfile, overwrite, infile, nsvrs):
     with open(outfile, 'w') as f:
         for r in res:
             f.write('{}\n'.format(r))
-    print("Results written into file {}".format(outfile))
+    log.info("Results written into file {}".format(outfile))
 
 
 if __name__ == '__main__':
@@ -204,16 +207,23 @@ if __name__ == '__main__':
         "-i", "--use-list", help="Reads the list from a file",
         default=None)
     parser.add_argument('-d', '--debug', action='store_true')
+    parser.add_argument('-n', '--use-nameserver', action='append')
     args = parser.parse_args()
 
     if args.debug:
         log.setLevel(logging.DEBUG)
         log.debug("Debug logging enabled")
 
-    nsvrs = dns.resolver.query(args.domain, 'NS')
     _nsvrs = list()
+    if args.use_nameserver:
+        nsvrs = args.use_nameserver
+    else:
+        nsvrs = dns.resolver.query(args.domain, 'NS')
+
     for ns in nsvrs:
-        _nsvrs.append(socket.gethostbyname(str(ns)[:-1]))
+        log.debug('ns: {}'.format(ns))
+        _nsvrs.append(socket.gethostbyname(str(ns)))
+
     log.debug('Using name servers: {}'.format(_nsvrs))
     main(
         args.domain,
