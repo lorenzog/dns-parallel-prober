@@ -13,7 +13,8 @@ import string
 import sys
 import time
 import threading
-
+import dns.query
+import dns.resolver
 
 INCREASE_PERCENT = 0.1
 MAX_DOMAIN_LEN = 3
@@ -31,7 +32,8 @@ ALPHABET = ''.join([
 
 
 res = deque()
-
+ns = []
+resolve = dns.resolver.Resolver()
 
 class Prober(threading.Thread):
     def __init__(self, dns_server, target):
@@ -48,14 +50,20 @@ class Prober(threading.Thread):
         # remove from here
         #
         # using a normal distribution to simulate real work
-        _will_take = abs(random.gauss(0, 1) * 5)
-        time.sleep(_will_take)
+        #_will_take = abs(random.gauss(0, 1) * 5)
+        #time.sleep(_will_take)
         #
         # to here
         ###
-
+        resolve.nameservers = [item.address for item in resolve.query(self.dns_server)]
+        try:
+            answer = resolve.query(self.target)
+            for data in answer:
+                print ('{} | {}'.format(self.target, data))
+        except Exception as e:
+            a = e
         # then append the result to some form of storage
-        res.append("{} done in {}s".format(self.target, _will_take))
+        #res.append("{} done in {}s".format(self.target, _will_take))
 
 
 def subdomain_gen():
@@ -72,21 +80,21 @@ def subdomain_fromlist(the_list):
             yield line.replace('\n', '')
 
 
-def fill(d, amount, dom, sub):
+def fill(d, amount, dom, sub, ns):
     for i in range(amount):
         # calls next() on the generator to get the next iteration (or next subdomain)
-        t = Prober('dns_server', '{}.{}'.format(sub.next(), dom))
+        t = Prober(ns, '{}.{}'.format(sub.next(), dom))
         t.start()
         d.append(t)
 
 
-def main(dom, max_running_threads, outfile, overwrite, infile):
+def main(dom, max_running_threads, outfile, overwrite, infile, nsvrs):
     if os.path.exists(outfile):
         if overwrite is False:
             raise SystemExit("Specified file {} exists and overwrite option (-f) not set".format(outfile))
         else:
             print("Overwriting output file {}".format(outfile))
-    print("-: queue ckeck interval increased by {}%\n.: no change\n".format(INCREASE_PERCENT))
+    #print("-: queue ckeck interval increased by {}%\n.: no change\n".format(INCREASE_PERCENT))
 
     # this is the starting value - it will adjust it according to depletion rate
     sleep_time = 0.5
@@ -103,8 +111,11 @@ def main(dom, max_running_threads, outfile, overwrite, infile):
         sub = subdomain_fromlist(infile)
 
     try:
+
         # fill the queue ip to max for now
-        fill(d, max_running_threads, dom, sub)
+    #    nsvrs = dns.resolver.query(dom, 'NS')
+        ns = str(nsvrs[random.randint(0, len(nsvrs)-1)])[:-1]
+        fill(d, max_running_threads, dom, sub, ns)
         print("Press CTRL-C to gracefully stop")
         running = True
     except StopIteration:
@@ -128,12 +139,12 @@ def main(dom, max_running_threads, outfile, overwrite, infile):
 
             if rate > 0 and delta > max_running_threads / 10:
                 sleep_time -= (sleep_time * INCREASE_PERCENT)
-                print('+', end="")
+                #print('+', end="")
             else:
                 sleep_time += (sleep_time * INCREASE_PERCENT)
-                print('.', end="")
+               # print('.', end="")
 
-            fill(d, delta, dom, sub)
+            fill(d, delta, dom, sub, ns)
             previous_len = len(d)
 
         except KeyboardInterrupt:
@@ -163,4 +174,5 @@ if __name__ == '__main__':
     parser.add_argument("-f", "--force-overwrite", default=False, action='store_true')
     parser.add_argument("-i", "--use-list", help="Reads the list from a file", default=None)
     args = parser.parse_args()
-    main(args.domain, args.max_running_threads, args.savefile, args.force_overwrite, args.use_list)
+    nsvrs = dns.resolver.query(args.domain, 'NS')
+    main(args.domain, args.max_running_threads, args.savefile, args.force_overwrite, args.use_list, nsvrs)
