@@ -80,7 +80,7 @@ class Prober(threading.Thread):
                 res.append(out)
                 log.info(out)
         except dns.exception.DNSException as e:
-            log.info(" --nope-- | {}".format(self.target))
+        #    log.info(" --nope-- | {}".format(self.target))
             log.debug("Error in thread {} when querying {}: {}".format(
                 self.name, self.target, e))
         # then append the result to some form of storage
