@@ -1,3 +1,7 @@
+# DNS Parallel Prober
+# Subdomains.txt gathered from research carried out in 2014/15
+# Link to research: https://haxpo.nl/haxpo2015ams/wp-content/uploads/sites/4/2015/04/D1-P.-Mason-K.-Flemming-A.-Gill-All-Your-Hostnames-Are-Belong-to-Us.pdf
+#
 """
 PoC for distributing DNS queries
 ================================
