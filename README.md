@@ -16,13 +16,19 @@ the depletion speed, i.e. the faster the threads complete the sooner new
 ones will be added until an equilibrium is reached. It tries to stay
 reasonably close to the maximum value set.
 
-Usage:
+### Quickstart
 
-    python dns-queue example.com 100 out.txt
+Scan `example.com` using 100 threads, save the result in `out.txt`:
 
-If you want to read the subdomains frmo a list, do:
+    python dns-queue.py example.com 100 out.txt
 
-    python dns-queue example.com 100 out.txt -i subdomains.txt
+If you want to read the subdomains from a list, do:
+
+    python dns-queue.py example.com 100 out.txt -i subdomains.txt
+
+For help:
+
+    python dns-queue.py -h
 
 Press ctrl-c to stop - it will wait for the last threads to finish and
-write all results to `out.txt`.
+only then write all results to `out.txt`.
