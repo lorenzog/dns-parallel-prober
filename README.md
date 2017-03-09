@@ -38,6 +38,9 @@ For help:
 Press ctrl-c to stop - it will wait for the last threads to finish and
 only then write all results to `out.txt`.
 
+### Demo
+[![asciicast](https://asciinema.org/a/16teprhj9hykzrl8hmtyrte2k.png)](https://asciinema.org/a/16teprhj9hykzrl8hmtyrte2k)
+
 ### Notes
 
 The key thing is that the iteration frequency is dynamically adapted to
