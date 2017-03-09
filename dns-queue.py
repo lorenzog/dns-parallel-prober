@@ -1,10 +1,11 @@
-# DNS Parallel Prober
-# Subdomains.txt gathered from research carried out in 2014/15
-# Link to research: https://haxpo.nl/haxpo2015ams/wp-content/uploads/sites/4/2015/04/D1-P.-Mason-K.-Flemming-A.-Gill-All-Your-Hostnames-Are-Belong-to-Us.pdf
-#
+#!/usr/bin/env python
 """
-PoC for distributing DNS queries
-================================
+DNS Parallel Prober
+===================
+
+Given a domain name, probes its subdomains either by brute-force or from a list.
+
+See `README.md` for more information and usage.
 
 """
 from __future__ import print_function
@@ -19,11 +20,15 @@ import string
 import sys
 import time
 import threading
-import dns.query
-import dns.resolver
+try:
+    import dns.query
+    import dns.resolver
+except ImportError:
+    # pip install dnspython
+    raise SystemExit("Module dnspython not found. Are you in the virtualenv? See README.md for quickstart instructions.")
 
 INCREASE_PERCENT = 0.1
-MAX_DOMAIN_LEN = 3
+DEFAULT_MAX_SUBDOMAIN_LEN = 3
 
 # valid domain names allow ASCII letters, digits and hyphen (and are case
 # insensitive)
@@ -58,20 +63,6 @@ class Prober(threading.Thread):
         self.dns_server = dns_server
 
     def run(self):
-        # this simulates how long the DNS query will take; substitute with the
-        # actual DNS query command
-
-        ###
-        # remove from here
-        #
-        # using a normal distribution to simulate real work
-        # _will_take = abs(random.gauss(0, 1) * 5)
-        # time.sleep(_will_take)
-        #
-        # to here
-        ###
-        # resolve.nameservers = [item.address for item in resolve.query(
-        #   self.dns_server)]
         resolver = dns.resolver.Resolver()
         try:
             log.debug("{}: Resolving {} with nameserver {}".format(
@@ -84,27 +75,28 @@ class Prober(threading.Thread):
                 res.append(out)
                 log.info(out)
         except dns.exception.DNSException as e:
-        #    log.info(" --nope-- | {}".format(self.target))
             log.debug("Error in thread {} when querying {}: {}".format(
                 self.name, self.target, e))
-        # then append the result to some form of storage
-        # res.append("{} done in {}s".format(self.target, _will_take))
 
 
-def subdomain_gen():
+def subdomain_gen(max_subdomain_len):
     """A generator that.. generates all subdomains from the given alphabet"""
-    for i in range(MAX_DOMAIN_LEN):
+    for i in range(max_subdomain_len):
         for p in itertools.permutations(ALPHABET, i + 1):
             yield ''.join(p)
 
 
 def subdomain_fromlist(the_list):
+    # XXX this could be optimised by reading chunks from the file to avoid
+    # disk access every new subdomain, but if network access is slower than
+    # disk access then we should be OK.
     """A generator that yields the content from a file"""
     with open(the_list) as f:
         for line in f.readlines():
             yield line.replace('\n', '')
 
 
+# fills the queue with new threads
 def fill(d, amount, dom, sub, nsvrs):
     for i in range(amount):
         # calls next() on the generator to get the next iteration (or next
@@ -114,7 +106,7 @@ def fill(d, amount, dom, sub, nsvrs):
         d.append(t)
 
 
-def main(dom, max_running_threads, outfile, overwrite, infile, nsvrs):
+def main(dom, max_running_threads, outfile, overwrite, infile, nsvrs, max_subdomain_len):
     if os.path.exists(outfile):
         if overwrite is False:
             raise SystemExit(
@@ -135,7 +127,7 @@ def main(dom, max_running_threads, outfile, overwrite, infile, nsvrs):
 
     if infile is None:
         # the subdomain generator
-        sub = subdomain_gen()
+        sub = subdomain_gen(max_subdomain_len)
     else:
         if not os.path.exists(infile):
             raise SystemExit("{} not found".format(infile))
@@ -210,6 +202,8 @@ if __name__ == '__main__':
     parser.add_argument(
         "-i", "--use-list", help="Reads the list from a file",
         default=None)
+    parser.add_argument("-l", "--max-subdomain-len", default=DEFAULT_MAX_SUBDOMAIN_LEN,
+        help="Maximum length of the subdomain for bruteforcing. Default: {}".format(DEFAULT_MAX_SUBDOMAIN_LEN))
     parser.add_argument('-d', '--debug', action='store_true')
     parser.add_argument('-n', '--use-nameserver', action='append')
     args = parser.parse_args()
@@ -234,4 +228,7 @@ if __name__ == '__main__':
         args.max_running_threads,
         args.savefile,
         args.force_overwrite,
-        args.use_list, _nsvrs)
+        args.use_list,
+        _nsvrs,
+        args.max_subdomain_len,
+        )
