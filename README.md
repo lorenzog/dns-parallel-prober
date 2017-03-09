@@ -1,4 +1,4 @@
-A parallelised domain name prober
+DNS Queue - A Parallelised DNS Prober
 =================================
 
 This script is a PoC for a parallelised domain name prober. It creates a
