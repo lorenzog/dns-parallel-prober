@@ -11,10 +11,9 @@ at your own risk. You are likely to get blacklisted and/or saturate your
 bandwidth. Whatever you do, it's your responsibility to make sure you
 have approval for it.
 
-The key thing is that the iteration frequency is dynamically adapted to
-the depletion speed, i.e. the faster the threads complete the sooner new
-ones will be added until an equilibrium is reached. It tries to stay
-reasonably close to the maximum value set.
+Hat tip to: [Kyle F.](https://github.com/radman404) for the original idea.
+
+![Sample screenshot](screenshot.png?raw=true "Usage example")
 
 ### Installation
 
@@ -40,6 +39,11 @@ Press ctrl-c to stop - it will wait for the last threads to finish and
 only then write all results to `out.txt`.
 
 ### Notes
+
+The key thing is that the iteration frequency is dynamically adapted to
+the depletion speed, i.e. the faster the threads complete the sooner new
+ones will be added until an equilibrium is reached. It tries to stay
+reasonably close to the maximum value set.
 
 File `subdomains.txt` gathered from research carried out in 2014/15
 
