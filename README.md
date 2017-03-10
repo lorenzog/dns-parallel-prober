@@ -16,7 +16,7 @@ Hat tip to: [Kyle F.](https://github.com/radman404) for the original idea.
 ![Sample screenshot](screenshot.png?raw=true "Usage example")
 
 ### Installation
-
+    sudo apt-get install python-virtualenv python-pip
     virtualenv venv
     source venv/bin/activate
     pip install dnspython
