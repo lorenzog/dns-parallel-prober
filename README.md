@@ -1,6 +1,6 @@
 DNS Queue - A Parallelised DNS Prober
 =================================
-[![GitHub license](https://img.shields.io/badge/license-GNU%20GENERAL%20PUBLIC%20LICENSE-blue.svg)](https://github.com/PentestLimited/dns-parallel-prober/blob/master/LICENSE)
+[![GitHub license](https://img.shields.io/badge/license-GNU%20GENERAL%20PUBLIC%20LICENSE-blue.svg)](https://github.com/PentestLimited/dns-parallel-prober/blob/master/LICENSE) ![Status](https://img.shields.io/badge/DNS--Queue-Built-brightgreen.svg)
 
 ## What is DNS Queue?
 This script is a proof of concept for a parallelised domain name prober. It creates a queue of threads and tasks each one to probe a sub-domain of the given root domain. At every iteration step each dead thread is removed and the queue is replenished as necessary.
