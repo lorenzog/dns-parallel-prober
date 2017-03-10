@@ -1,4 +1,4 @@
-A parallelised domain name prober
+DNS Queue - A Parallelised DNS Prober
 =================================
 
 This script is a PoC for a parallelised domain name prober. It creates a
@@ -37,6 +37,9 @@ For help:
 
 Press ctrl-c to stop - it will wait for the last threads to finish and
 only then write all results to `out.txt`.
+
+### Demo
+[![asciicast](https://asciinema.org/a/16teprhj9hykzrl8hmtyrte2k.png)](https://asciinema.org/a/16teprhj9hykzrl8hmtyrte2k)
 
 ### Notes
 
