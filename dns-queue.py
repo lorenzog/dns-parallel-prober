@@ -25,11 +25,14 @@ try:
     import dns.resolver
 except ImportError:
     # pip install dnspython
-    raise SystemExit("Module dnspython not found. Are you in the virtualenv? See README.md for quickstart instructions.")
+    raise SystemExit("Module 'dnspython' not found. Are you in the virtualenv? See README.md for quickstart instructions.")
 
 INCREASE_PERCENT = 0.1
 DEFAULT_MAX_SUBDOMAIN_LEN = 3
 DEFAULT_DNS_TIMEOUT = 5
+# for checking whether the DNS is a wildcard DNS...
+RANDOM_SUBDOMAINS = 5
+RANDOM_SUBDOMAINS_LENGTH = 6
 
 # valid domain names allow ASCII letters, digits and hyphen (and are case
 # insensitive)
@@ -58,12 +61,18 @@ res = deque()
 
 
 class Prober(threading.Thread):
-    def __init__(self, dns_server, target, dns_timeout):
+    def __init__(self, dns_server, target, dns_timeout, results_collector):
         # invoke Thread.__init__
         super(Prober, self).__init__()
         self.target = target
         self.dns_server = dns_server
+        # XXX unused for now
         self.dns_timeout = dns_timeout
+        # used for storing the results
+        if results_collector is None:
+            self.res = res
+        else:
+            self.res = results_collector
 
     def run(self):
         # TODO add options like, dns timeout, cache, etc.
@@ -77,11 +86,21 @@ class Prober(threading.Thread):
             answer = resolver.query(self.target)
             for data in answer:
                 out = '{} | {}'.format(self.target, data)
-                res.append(out)
+                self.res.append(out)
                 log.info(out)
         except dns.exception.DNSException as e:
             log.debug("Error in thread {} when querying {}: {}".format(
                 self.name, self.target, e))
+
+
+def random_subdomain():
+    """A generator that returns random subdomains, used for checking
+    wildcard DNS"""
+    for i in range(RANDOM_SUBDOMAINS):
+        _random_subdomain = ''
+        for j in range(RANDOM_SUBDOMAINS_LENGTH):
+            _random_subdomain += random.choice(ALPHABET)
+        yield _random_subdomain
 
 
 def subdomain_gen(max_subdomain_len):
@@ -102,7 +121,7 @@ def subdomain_fromlist(the_list):
 
 
 # fills the queue with new threads
-def fill(d, amount, dom, sub, nsvrs, dns_timeout):
+def fill(d, amount, dom, sub, nsvrs, dns_timeout, results_collector=None):
     for i in range(amount):
         # calls next() on the generator to get the next iteration (or next
         # subdomain)
@@ -111,7 +130,8 @@ def fill(d, amount, dom, sub, nsvrs, dns_timeout):
             # dns server
             random.choice(nsvrs),
             _target,
-            dns_timeout)
+            dns_timeout,
+            results_collector)
         t.start()
         d.append(t)
 
@@ -125,7 +145,7 @@ def fill(d, amount, dom, sub, nsvrs, dns_timeout):
 # _will_take = abs(random.gauss(0, 1) * 5)
 # time.sleep(_will_take)
 
-def main(dom, max_running_threads, outfile, overwrite, infile, nsvrs, max_subdomain_len, dns_timeout):
+def main(dom, max_running_threads, outfile, overwrite, infile, nsvrs, max_subdomain_len, dns_timeout, check_wildcard_dns):
     if os.path.exists(outfile):
         if overwrite is False:
             raise SystemExit(
@@ -136,6 +156,30 @@ def main(dom, max_running_threads, outfile, overwrite, infile, nsvrs, max_subdom
     # print(
     #     "-: queue ckeck interval increased by {}%\n.: "
     #     "no change\n".format(INCREASE_PERCENT))
+
+    if check_wildcard_dns:
+        log.debug("Checking wildcard DNS...")
+        # a wildcard DNS returns the same IP for every possible query of a non-existing domain
+        wildcard_checklist = deque()
+        wildcard_results = deque()
+        fill(
+            wildcard_checklist,
+            RANDOM_SUBDOMAINS,
+            dom,
+            random_subdomain(),
+            nsvrs,
+            dns_timeout,
+            wildcard_results)
+        # wait for the probes to finish
+        for el in range(len(wildcard_checklist)):
+            t = wildcard_checklist.popleft()
+            t.join()
+        # parse results, stop if they all have a positive hit
+        if len(wildcard_results) == RANDOM_SUBDOMAINS:
+            raise SystemExit(
+                "{} random subdomains returned a hit; "
+                "It is likely this is a wildcard DNS server. Use the -w option to skip this check.".format(
+                    RANDOM_SUBDOMAINS))
 
     # this is the starting value - it will adjust it according to depletion
     # rate
@@ -220,12 +264,13 @@ if __name__ == '__main__':
     parser.add_argument(
         "-i", "--use-list", help="Reads the list from a file",
         default=None)
-    parser.add_argument("-l", "--max-subdomain-len", default=DEFAULT_MAX_SUBDOMAIN_LEN,
+    parser.add_argument("-l", "--max-subdomain-len", type=int, default=DEFAULT_MAX_SUBDOMAIN_LEN,
         help="Maximum length of the subdomain for bruteforcing. Default: {}".format(DEFAULT_MAX_SUBDOMAIN_LEN))
     parser.add_argument('-d', '--debug', action='store_true')
     parser.add_argument('-n', '--use-nameserver', action='append')
     parser.add_argument('-t', '--dns-timeout', default=DEFAULT_DNS_TIMEOUT,
         help="How long to wait for a DNS response. Default: {}".format(DEFAULT_DNS_TIMEOUT))
+    parser.add_argument('-w', '--no-check-wildcard-dns', action='store_false', default=True)
     args = parser.parse_args()
 
     if args.debug:
@@ -252,4 +297,5 @@ if __name__ == '__main__':
         _nsvrs,
         args.max_subdomain_len,
         args.dns_timeout,
+        args.no_check_wildcard_dns,
         )
