@@ -88,7 +88,7 @@ class Prober(threading.Thread):
                 # log.info(out)
         except dns.exception.Timeout as e:
             # we want to know if the DNS server is barfing
-            log.warn(e)
+            log.warn("{}: {}".format(self.target, e))
         except dns.exception.DNSException as e:
             log.debug("Error in thread {} when querying {}: {}".format(
                 self.name, self.target, e))
@@ -144,7 +144,8 @@ def do_check_wildcard_dns(dom, nsvrs, dns_timeout):
     try:
         fill(
             wildcard_checklist,
-            RANDOM_SUBDOMAINS,
+            # RANDOM_SUBDOMAINS,
+            1,  # use one thread at the time for this check
             dom,
             random_subdomain(),
             nsvrs,
@@ -250,14 +251,15 @@ def main(dom, max_running_threads, outfile, overwrite, infile, nsvrs, max_subdom
             previous_len = len(d)
 
         except KeyboardInterrupt:
+            print("\n[+] DNS probing stopped.")
             running = False
         except StopIteration:
-            print("\n[+] Done.")
+            print("\n[+] DNS probing done.")
             running = False
         finally:
             sys.stdout.flush()
 
-    print("\n[+] Waiting for all threads to finish...")
+    print("[+] Waiting for all threads to finish...")
     # waiting for all threads to finish, popping them one by one and join()
     # each...
     for el in range(len(d)):
