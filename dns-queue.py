@@ -122,6 +122,10 @@ def subdomain_fromlist(the_list):
 
 
 # fills the queue with new threads
+# XXX IMPORTANT -- When this function is used to check for wildcard DNSs then
+# 'amount' must be at least as big as the number of subdomains, otherwise the
+# remaining will be left out. Reason: there's no replenishing of the queue when
+# doing wildcard dns checks.
 def fill(d, amount, dom, sub, nsvrs, dns_timeout, results_collector=None):
     for i in range(amount):
         # calls next() on the generator to get the next target
@@ -142,10 +146,12 @@ def do_check_wildcard_dns(dom, nsvrs, dns_timeout):
     wildcard_checklist = deque()
     wildcard_results = deque()
     try:
+        # XXX the second parameter must be at least as big as the number of random subdomains;
+        # as there's no replenishing of the queue here, if it's less than RANDOM_SUBDOMAINS then
+        # some will be left out.
         fill(
             wildcard_checklist,
-            # RANDOM_SUBDOMAINS,
-            1,  # use one thread at the time for this check
+            RANDOM_SUBDOMAINS,
             dom,
             random_subdomain(),
             nsvrs,
@@ -158,7 +164,8 @@ def do_check_wildcard_dns(dom, nsvrs, dns_timeout):
     except KeyboardInterrupt as e:
         raise SystemExit(e)
 
-    # parse results, stop if they all have a positive hit
+    # TODO: parse results, stop if they all have a positive hit
+    # for now we simply count the number of hits
     if len(wildcard_results) == RANDOM_SUBDOMAINS:
         raise SystemExit(
             "{} random subdomains returned a hit; "
@@ -175,7 +182,12 @@ def do_check_wildcard_dns(dom, nsvrs, dns_timeout):
 # _will_take = abs(random.gauss(0, 1) * 5)
 # time.sleep(_will_take)
 
-def main(dom, max_running_threads, outfile, overwrite, infile, nsvrs, max_subdomain_len, dns_timeout, no_check_wildcard_dns):
+def main(dom, max_running_threads, outfile, overwrite, infile, use_nameserver, max_subdomain_len, dns_timeout, no_check_wildcard_dns):
+
+    #
+    ###
+    # output management
+    #
     print("[+] Output destination: '{}'".format(outfile))
     if os.path.exists(outfile):
         if overwrite is False:
@@ -188,12 +200,46 @@ def main(dom, max_running_threads, outfile, overwrite, infile, nsvrs, max_subdom
     #     "-: queue ckeck interval increased by {}%\n.: "
     #     "no change\n".format(INCREASE_PERCENT))
 
+    #
+    ###
+    #
+
     print("[+] Press CTRL-C to gracefully stop...")
+
+    #
+    ###
+    # finding DNS servers
+    #
+
+    print("[+] Finding authoritative name servers for domain...")
+    nsvrs = list()
+    if use_nameserver:
+        _nsvrs = use_nameserver
+    else:
+        try:
+            _nsvrs = dns.resolver.query(args.domain, 'NS')
+        except dns.exception as e:
+            raise SystemExit(e)
+        except KeyboardInterrupt as e:
+            raise SystemExit(e)
+    for ns in _nsvrs:
+        log.debug('ns: {}'.format(ns))
+        nsvrs.append(socket.gethostbyname(str(ns)))
+    log.debug('Using name servers: {}'.format(nsvrs))
+
+    #
+    ###
+    # check for wildcard DNS
+    #
 
     # hate double negatives
     check_wildcard_dns = not no_check_wildcard_dns
     if check_wildcard_dns:
         do_check_wildcard_dns(dom, nsvrs, dns_timeout)
+
+    #
+    ###
+    # Begin
 
     # this is the starting value - it will adjust it according to depletion
     # rate
@@ -205,12 +251,14 @@ def main(dom, max_running_threads, outfile, overwrite, infile, nsvrs, max_subdom
     if infile is None:
         # use the inbuilt subdomain generator
         sub = subdomain_gen(max_subdomain_len)
+        print("[+] Will search for subdomains made of all possible {}-characters permutations".format(max_subdomain_len))
     else:
         if not os.path.exists(infile):
             raise SystemExit("{} not found".format(infile))
         sub = subdomain_fromlist(infile)
-        print("[+] Reading subdomains from '{}'".format(infile))
+        print("[+] Will search for subdomains contained in '{}'".format(infile))
 
+    # pre-loading of queue
     print("[+] DNS probing starting...")
     try:
         # fill the queue ip to max for now
@@ -300,29 +348,13 @@ if __name__ == '__main__':
         log.setLevel(logging.DEBUG)
         log.debug("Debug logging enabled")
 
-    _nsvrs = list()
-    if args.use_nameserver:
-        nsvrs = args.use_nameserver
-    else:
-        try:
-            nsvrs = dns.resolver.query(args.domain, 'NS')
-        except dns.exception as e:
-            raise SystemExit(e)
-        except KeyboardInterrupt as e:
-            raise SystemExit(e)
-
-    for ns in nsvrs:
-        log.debug('ns: {}'.format(ns))
-        _nsvrs.append(socket.gethostbyname(str(ns)))
-
-    log.debug('Using name servers: {}'.format(_nsvrs))
     main(
         args.domain,
         args.max_running_threads,
         args.savefile,
         args.force_overwrite,
         args.use_list,
-        _nsvrs,
+        args.use_nameserver,
         args.max_subdomain_len,
         args.dns_timeout,
         args.no_check_wildcard_dns,
