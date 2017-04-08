@@ -12,7 +12,7 @@ Hat tip to: [Kyle F.](https://github.com/radman404) for the original idea and to
 
 ### Quickstart
 
-Scan `example.com` using 100 threads, save the result in `out.txt`:
+Scan all 3-characters subdomains of `example.com` using 100 threads, saving the results in `out.txt`:
 
     ./dns-queue.py example.com 100 out.txt
 
@@ -20,11 +20,11 @@ If you want to read the subdomains from a list, do:
 
     ./dns-queue.py example.com 100 out.txt -i subdomains.txt
 
-For help:
+For help and other options (e.g. subdomain length, DNS timeouts, etc.):
 
     ./dns-queue.py -h
 
-To stop: press `ctrl-c` - it will wait for the last threads to finish and *only then* write all results to `out.txt`.
+To stop: press `ctrl-c` - it will wait for the last threads to finish and *only then* write all results to `out.txt`. Pressing `ctrl-c` twice will likely not save anything to disk.
 
 ### Installation
 

@@ -84,11 +84,14 @@ class Prober(threading.Thread):
             for data in answer:
                 out = '{} | {}'.format(self.target, data)
                 self.res.append(out)
-                log.info(out)
+                # don't log to console, use file.
+                # log.info(out)
+        except dns.exception.Timeout as e:
+            # we want to know if the DNS server is barfing
+            log.warn(e)
         except dns.exception.DNSException as e:
             log.debug("Error in thread {} when querying {}: {}".format(
                 self.name, self.target, e))
-            log.warn(e)
 
 
 def random_subdomain():
@@ -134,22 +137,26 @@ def fill(d, amount, dom, sub, nsvrs, dns_timeout, results_collector=None):
 
 
 def do_check_wildcard_dns(dom, nsvrs, dns_timeout):
-    log.debug("Checking wildcard DNS...")
+    print("[+] Checking wildcard DNS...")
     # a wildcard DNS returns the same IP for every possible query of a non-existing domain
     wildcard_checklist = deque()
     wildcard_results = deque()
-    fill(
-        wildcard_checklist,
-        RANDOM_SUBDOMAINS,
-        dom,
-        random_subdomain(),
-        nsvrs,
-        dns_timeout,
-        wildcard_results)
-    # wait for the probes to finish
-    for el in range(len(wildcard_checklist)):
-        t = wildcard_checklist.popleft()
-        t.join()
+    try:
+        fill(
+            wildcard_checklist,
+            RANDOM_SUBDOMAINS,
+            dom,
+            random_subdomain(),
+            nsvrs,
+            dns_timeout,
+            wildcard_results)
+        # wait for the probes to finish
+        for el in range(len(wildcard_checklist)):
+            t = wildcard_checklist.popleft()
+            t.join()
+    except KeyboardInterrupt as e:
+        raise SystemExit(e)
+
     # parse results, stop if they all have a positive hit
     if len(wildcard_results) == RANDOM_SUBDOMAINS:
         raise SystemExit(
@@ -168,16 +175,19 @@ def do_check_wildcard_dns(dom, nsvrs, dns_timeout):
 # time.sleep(_will_take)
 
 def main(dom, max_running_threads, outfile, overwrite, infile, nsvrs, max_subdomain_len, dns_timeout, no_check_wildcard_dns):
+    print("[+] Output destination: '{}'".format(outfile))
     if os.path.exists(outfile):
         if overwrite is False:
             raise SystemExit(
-                "Specified file {} exists and overwrite "
+                "Specified file '{}' exists and overwrite "
                 "option (-f) not set".format(outfile))
         else:
-            log.info("Overwriting output file {}".format(outfile))
+            print("[+] Output destination will be overwritten.")
     # print(
     #     "-: queue ckeck interval increased by {}%\n.: "
     #     "no change\n".format(INCREASE_PERCENT))
+
+    print("[+] Press CTRL-C to gracefully stop...")
 
     # hate double negatives
     check_wildcard_dns = not no_check_wildcard_dns
@@ -198,15 +208,18 @@ def main(dom, max_running_threads, outfile, overwrite, infile, nsvrs, max_subdom
         if not os.path.exists(infile):
             raise SystemExit("{} not found".format(infile))
         sub = subdomain_fromlist(infile)
+        print("[+] Reading subdomains from '{}'".format(infile))
 
+    print("[+] DNS probing starting...")
     try:
         # fill the queue ip to max for now
         #    nsvrs = dns.resolver.query(dom, 'NS')
         # ns = str(nsvrs[random.randint(0, len(nsvrs)-1)])[:-1]
         fill(d, max_running_threads, dom, sub, nsvrs, dns_timeout)
-        log.info("Press CTRL-C to gracefully stop")
         running = True
     except StopIteration:
+        running = False
+    except KeyboardInterrupt:
         running = False
 
     previous_len = len(d)
@@ -239,21 +252,22 @@ def main(dom, max_running_threads, outfile, overwrite, infile, nsvrs, max_subdom
         except KeyboardInterrupt:
             running = False
         except StopIteration:
-            log.info("\nAaaand we're done!")
+            print("\n[+] Done.")
             running = False
         finally:
             sys.stdout.flush()
 
-    log.info("\nPlease wait for all threads to finish...")
+    print("\n[+] Waiting for all threads to finish...")
     # waiting for all threads to finish, popping them one by one and join()
     # each...
     for el in range(len(d)):
         t = d.popleft()
         t.join()
+    print("[+] Saving results to {}...".format(outfile))
     with open(outfile, 'w') as f:
         for r in res:
             f.write('{}\n'.format(r))
-    log.info("Results written into file {}".format(outfile))
+    print("[+] Done.")
 
 
 if __name__ == '__main__':
@@ -291,6 +305,8 @@ if __name__ == '__main__':
         try:
             nsvrs = dns.resolver.query(args.domain, 'NS')
         except dns.exception as e:
+            raise SystemExit(e)
+        except KeyboardInterrupt as e:
             raise SystemExit(e)
 
     for ns in nsvrs:
