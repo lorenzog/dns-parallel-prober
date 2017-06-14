@@ -79,10 +79,11 @@ class Prober(threading.Thread):
                 out = '{} | {}'.format(self.target, data)
                 res.append(out)
                 log.info(out)
+                print(out)
         except dns.exception.DNSException as e:
             log.debug("Error in thread {} when querying {}: {}".format(
                 self.name, self.target, e))
-print (out)
+
 
 def subdomain_gen(max_subdomain_len):
     """A generator that.. generates all subdomains from the given alphabet"""
