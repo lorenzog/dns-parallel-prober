@@ -57,6 +57,8 @@ log.setLevel(logging.INFO)
 
 # global object to collect results
 res = deque()
+# and errors
+err = deque()
 
 
 class RealProber(threading.Thread):
@@ -71,6 +73,7 @@ class RealProber(threading.Thread):
             # use the global object
             self.res = res
         else:
+            # used to save the output in a temporary object
             self.res = results_collector
 
     def run(self):
@@ -91,7 +94,9 @@ class RealProber(threading.Thread):
                 # log.info(out)
         except dns.exception.Timeout as e:
             # we want to know if the DNS server is barfing
-            log.warn("{}: {}".format(self.target, e))
+            errmsg = "{}: {}".format(self.target, e)
+            err.append(errmsg)
+            # log.warn(errmsg)
         except dns.exception.DNSException as e:
             log.debug("Error in thread {} when querying {}: {}".format(
                 self.name, self.target, e))
@@ -100,14 +105,14 @@ class RealProber(threading.Thread):
 class MockProber(threading.Thread):
     def __init__(self, *args, **kwargs):
         super(MockProber, self).__init__()
-        log.info("Mock prober {} initialised with {} {}".format(self.name, *args, **kwargs))
+        print("Mock prober {} initialised with {} {}".format(self.name, *args, **kwargs))
 
     def run(self):
         # sleep for a small amount of time, between 0.1 and 0.9
         _sleep_for = abs(random.normalvariate(0.5, 0.5))
         log.debug("Mock probe {} sleeping for {}...".format(self.name, _sleep_for))
         time.sleep(_sleep_for)
-        log.info("Mock prober {} done".format(self.name))
+        print("Mock prober {} done".format(self.name))
 
 
 def random_subdomain():
@@ -199,14 +204,15 @@ def main(dom,
          use_nameserver,
          max_subdomain_len,
          dns_timeout,
-         no_check_wildcard_dns):
+         no_check_wildcard_dns,
+         errfile=None):
 
     #
     ###
     # output management
     #
     print("[+] Output destination: '{}'".format(outfile))
-    if os.path.exists(outfile):
+    if outfile is not None and os.path.exists(outfile):
         if overwrite is False:
             raise SystemExit(
                 "Specified file '{}' exists and overwrite "
@@ -245,10 +251,10 @@ def main(dom,
         try:
             nsvrs.append(socket.gethostbyname(str(ns)))
         except socket.gaierror as e:
-            log.error("[ ] Error when resolving {}: {}".format(ns, e))
+            err.append("[ ] Error when resolving {}: {}".format(ns, e))
     if len(nsvrs) == 0:
         raise RuntimeError("None of the supplied name servers resolve to a valid IP")
-    log.info('[+] Using name servers: {}'.format(nsvrs))
+    print('[+] Using name servers: {}'.format(nsvrs))
 
     #
     ###
@@ -336,10 +342,23 @@ def main(dom,
     for el in range(len(d)):
         t = d.popleft()
         t.join()
-    print("[+] Saving results to {}...".format(outfile))
-    with open(outfile, 'w') as f:
-        for r in res:
-            f.write('{}\n'.format(r))
+
+    # ok, save output and error
+    if outfile is not None:
+        print("[+] Saving {} results to {}...".format(len(res), outfile))
+        with open(outfile, 'w') as f:
+            for r in res:
+                f.write('{}\n'.format(r))
+    else:
+        print('\n'.join(res))
+
+    if errfile is not None:
+        # default: overwrites error file
+        with open(errfile, 'w') as f:
+            f.write('\n'.join(err))
+    else:
+        log.warn('\n'.join(err))
+
     print("[+] Done.")
 
 
@@ -356,6 +375,7 @@ if __name__ == '__main__':
         )
     )
     parser.add_argument("savefile", default="out.txt")
+    parser.add_argument("-e", '--error-file', default="err.txt")
     parser.add_argument(
         "-f", "--force-overwrite", default=False,
         action='store_true')
@@ -408,6 +428,7 @@ if __name__ == '__main__':
     global Prober
     if args.simulate:
         Prober = MockProber
+        args.savefile = None
     else:
         Prober = RealProber
 
@@ -421,4 +442,5 @@ if __name__ == '__main__':
         args.max_subdomain_len,
         args.dns_timeout,
         args.no_check_wildcard_dns,
+        args.error_file,
     )
