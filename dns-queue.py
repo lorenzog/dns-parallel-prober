@@ -40,7 +40,7 @@ RANDOM_SUBDOMAINS_LENGTH = 6
 # http://stackoverflow.com/questions/7111881/what-are-the-allowed-characters-in-a-sub-domain
 # and https://en.wikipedia.org/wiki/Domain_name#Internationalized_domain_names
 ALPHABET = ''.join([
-    string.lowercase,
+    string.ascii_lowercase,
     string.digits,
     # technically domains shouldn't start or end with a -
     '-',
@@ -211,12 +211,13 @@ def main(dom, max_running_threads, outfile, overwrite, infile, use_nameserver, m
     # finding DNS servers
     #
 
-    print("[+] Finding authoritative name servers for domain...")
     nsvrs = list()
     if use_nameserver:
+        print("[+] Using user-supplied name servers...")
         _nsvrs = use_nameserver
     else:
         try:
+            print("[+] Finding authoritative name servers for domain...")
             _nsvrs = dns.resolver.query(args.domain, 'NS')
         except dns.exception as e:
             raise SystemExit(e)
@@ -335,10 +336,10 @@ if __name__ == '__main__':
         "-l", "--max-subdomain-len", type=int, default=DEFAULT_MAX_SUBDOMAIN_LEN,
         help="Maximum length of the subdomain for bruteforcing. Default: {}".format(DEFAULT_MAX_SUBDOMAIN_LEN))
     parser.add_argument('-d', '--debug', action='store_true')
-    parser.add_argument('-n', '--use-nameserver', action='append')
+    parser.add_argument('-n', '--use-nameserver', action='append', help="Use this DNS server. Can be repeated multiple times and a random one will be picked each time")
     parser.add_argument(
         '-t', '--dns-timeout', default=DEFAULT_DNS_TIMEOUT,
-        help="How long to wait for a DNS response. Default: {}".format(DEFAULT_DNS_TIMEOUT))
+        help="How long to wait for a DNS response. Default: {}s".format(DEFAULT_DNS_TIMEOUT))
     parser.add_argument(
         '-w', '--no-check-wildcard-dns', action='store_true', default=False,
         help="Skip the check for wildcard DNS")
