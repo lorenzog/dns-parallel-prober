@@ -18,6 +18,14 @@ improvements and testing.
 
 ### Quickstart
 
+Install the requirements:
+
+    pip install -r requirements.txt
+    # if you don't want to install stuff as root, do:
+    # virtualenv venv
+    # source venv/bin/activate
+    # pip install -r requirements.txt
+
 Scan all 3-characters subdomains of `example.com` using 100 threads,
 saving the results in `out.txt`:
 

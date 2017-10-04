@@ -15,6 +15,7 @@ import itertools
 import logging
 import os
 import random
+import progressbar
 import socket
 import string
 import sys
@@ -137,6 +138,14 @@ def subdomain_gen(max_subdomain_len):
             yield ''.join(p)
 
 
+def subdomain_len(max_subdomain_len):
+    import math
+    total = 0
+    for i in range(max_subdomain_len):
+        total += math.factorial(len(ALPHABET)) / math.factorial(len(ALPHABET) - i - 1)
+    return total
+
+
 def subdomain_fromlist(the_list):
     # XXX this could be optimised by reading chunks from the file to avoid
     # disk access every new subdomain, but if network access is slower than
@@ -145,6 +154,11 @@ def subdomain_fromlist(the_list):
     with open(the_list) as f:
         for line in f.readlines():
             yield line.replace('\n', '')
+
+
+def subdomain_fromlist_len(the_list):
+    with open(the_list) as f:
+        return len(f.readlines())
 
 
 # fills the queue with new threads
@@ -292,15 +306,18 @@ def main(dom,
     if infile is None:
         # use the inbuilt subdomain generator
         sub = subdomain_gen(max_subdomain_len)
+        total_domains = subdomain_len(max_subdomain_len)
         print("[+] Will search for subdomains made of all possible {}-characters permutations".format(max_subdomain_len))
     else:
         if not os.path.exists(infile):
             raise SystemExit("{} not found".format(infile))
         sub = subdomain_fromlist(infile)
+        total_domains = subdomain_fromlist_len(infile)
         print("[+] Will search for subdomains contained in '{}'".format(infile))
 
     # pre-loading of queue
     print("[+] DNS probing starting...")
+    bar = progressbar.ProgressBar(max_value=total_domains)
     try:
         # fill the queue ip to max for now
         #    nsvrs = dns.resolver.query(dom, 'NS')
@@ -312,6 +329,7 @@ def main(dom,
     except KeyboardInterrupt:
         running = False
 
+    done = 0
     previous_len = len(d)
     while running:
         try:
@@ -328,6 +346,8 @@ def main(dom,
             rate = delta / sleep_time
             # print('\tq: {}\tdelta: {}\trate: {}\t{}s'.format(
             #     len(d), delta, rate, sleep_time))
+            done += delta
+            bar.update(done)
 
             if rate > 0 and delta > max_running_threads / 10:
                 sleep_time -= (sleep_time * INCREASE_PERCENT)
