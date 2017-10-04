@@ -329,7 +329,7 @@ def main(dom, max_running_threads, outfile, overwrite, infile, use_nameserver, m
 if __name__ == '__main__':
     parser = argparse.ArgumentParser()
     parser.add_argument("domain")
-    parser.add_argument("max_running_threads", type=int)
+    parser.add_argument("max_running_threads", type=int, help="Maximum number of threads to run. Most will be idle waiting for network timeout, so start around 100 and keep doubling until it looks too big.")
     parser.add_argument("savefile", default="out.txt")
     parser.add_argument(
         "-f", "--force-overwrite", default=False,
