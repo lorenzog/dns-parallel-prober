@@ -25,7 +25,8 @@ try:
     import dns.resolver
 except ImportError:
     # pip install dnspython
-    raise SystemExit("Module 'dnspython' not found. Are you in the virtualenv? See README.md for quickstart instructions.")
+    raise SystemExit("Module 'dnspython' not found. Are you in the virtualenv? "
+                     "See README.md for quickstart instructions.")
 
 INCREASE_PERCENT = 0.1
 DEFAULT_MAX_SUBDOMAIN_LEN = 3
@@ -161,13 +162,14 @@ def fill(d, amount, dom, sub, nsvrs, dns_timeout, results_collector=None):
 
 def do_check_wildcard_dns(dom, nsvrs, dns_timeout):
     print("[+] Checking wildcard DNS...")
-    # a wildcard DNS returns the same IP for every possible query of a non-existing domain
+    # a wildcard DNS returns the same IP for every possible query of a
+    # non-existing domain
     wildcard_checklist = deque()
     wildcard_results = deque()
     try:
-        # XXX the second parameter must be at least as big as the number of random subdomains;
-        # as there's no replenishing of the queue here, if it's less than RANDOM_SUBDOMAINS then
-        # some will be left out.
+        # XXX the second parameter must be at least as big as the number of
+        # random subdomains; as there's no replenishing of the queue here, if
+        # it's less than RANDOM_SUBDOMAINS then some will be left out.
         fill(
             wildcard_checklist,
             RANDOM_SUBDOMAINS,
@@ -188,20 +190,20 @@ def do_check_wildcard_dns(dom, nsvrs, dns_timeout):
     if len(wildcard_results) == RANDOM_SUBDOMAINS:
         raise SystemExit(
             "{} random subdomains returned a hit; "
-            "It is likely this is a wildcard DNS server. Use the -w option to skip this check.".format(
+            "It is likely this is a wildcard DNS server. "
+            "Use the -w option to skip this check.".format(
                 RANDOM_SUBDOMAINS))
 
 
-# TODO a 'dry-run' that prints but does not execute.
-#
-# DEBUG code left-over
-# this simulates how long the DNS query will take; substitute with the
-# actual DNS query command
-# using a normal distribution to simulate real work
-# _will_take = abs(random.gauss(0, 1) * 5)
-# time.sleep(_will_take)
-
-def main(dom, max_running_threads, outfile, overwrite, infile, use_nameserver, max_subdomain_len, dns_timeout, no_check_wildcard_dns):
+def main(dom,
+         max_running_threads,
+         outfile,
+         overwrite,
+         infile,
+         use_nameserver,
+         max_subdomain_len,
+         dns_timeout,
+         no_check_wildcard_dns):
 
     #
     ###
@@ -348,7 +350,15 @@ def main(dom, max_running_threads, outfile, overwrite, infile, use_nameserver, m
 if __name__ == '__main__':
     parser = argparse.ArgumentParser()
     parser.add_argument("domain")
-    parser.add_argument("max_running_threads", type=int, help="Maximum number of threads to run. Most will be idle waiting for network timeout, so start around 100 and keep doubling until it looks too big.")
+    parser.add_argument(
+        "max_running_threads",
+        type=int,
+        help=(
+            "Maximum number of threads to run. Most will be idle "
+            "waiting for network timeout, so start around 100 and "
+            "keep doubling until it looks too big."
+        )
+    )
     parser.add_argument("savefile", default="out.txt")
     parser.add_argument(
         "-f", "--force-overwrite", default=False,
@@ -357,17 +367,41 @@ if __name__ == '__main__':
         "-i", "--use-list", help="Reads the list from a file",
         default=None)
     parser.add_argument(
-        "-l", "--max-subdomain-len", type=int, default=DEFAULT_MAX_SUBDOMAIN_LEN,
-        help="Maximum length of the subdomain for bruteforcing. Default: {}".format(DEFAULT_MAX_SUBDOMAIN_LEN))
+        "-l",
+        "--max-subdomain-len",
+        type=int,
+        default=DEFAULT_MAX_SUBDOMAIN_LEN,
+        help=(
+            "Maximum length of the subdomain for bruteforcing. "
+            "Default: {}".format(DEFAULT_MAX_SUBDOMAIN_LEN)
+        )
+    )
     parser.add_argument('-d', '--debug', action='store_true')
-    parser.add_argument('-n', '--use-nameserver', action='append', help="Use this DNS server. Can be repeated multiple times and a random one will be picked each time")
     parser.add_argument(
-        '-t', '--dns-timeout', default=DEFAULT_DNS_TIMEOUT,
-        help="How long to wait for a DNS response. Default: {}s".format(DEFAULT_DNS_TIMEOUT))
+        '-n',
+        '--use-nameserver',
+        action='append',
+        help=("Use this DNS server. Can be repeated multiple "
+              "times and a random one will be picked each time")
+    )
     parser.add_argument(
-        '-w', '--no-check-wildcard-dns', action='store_true', default=False,
-        help="Skip the check for wildcard DNS")
-    parser.add_argument('--simulate', action='store_true', help="Simulate the probing with random timeouts")
+        '-t',
+        '--dns-timeout',
+        default=DEFAULT_DNS_TIMEOUT,
+        help="How long to wait for a DNS response. Default: {}s".format(DEFAULT_DNS_TIMEOUT)
+    )
+    parser.add_argument(
+        '-w',
+        '--no-check-wildcard-dns',
+        action='store_true',
+        default=False,
+        help="Skip the check for wildcard DNS"
+    )
+    parser.add_argument(
+        '--simulate',
+        action='store_true',
+        help="Simulate the probing with random timeouts"
+    )
 
     args = parser.parse_args()
 
