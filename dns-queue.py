@@ -62,7 +62,7 @@ err = deque()
 
 
 class RealProber(threading.Thread):
-    def __init__(self, dns_server, target, dns_timeout, results_collector):
+    def __init__(self, dns_server, target, dns_timeout, results_collector, error_collector):
         # invoke Thread.__init__
         super(Prober, self).__init__()
         self.target = target
@@ -75,6 +75,11 @@ class RealProber(threading.Thread):
         else:
             # used to save the output in a temporary object
             self.res = results_collector
+
+        if error_collector is None:
+            self.err = err
+        else:
+            self.err = error_collector
 
     def run(self):
         resolver = dns.resolver.Resolver()
@@ -95,7 +100,7 @@ class RealProber(threading.Thread):
         except dns.exception.Timeout as e:
             # we want to know if the DNS server is barfing
             errmsg = "{}: {}".format(self.target, e)
-            err.append(errmsg)
+            self.err.append(errmsg)
             # log.warn(errmsg)
         except dns.exception.DNSException as e:
             log.debug("Error in thread {} when querying {}: {}".format(
@@ -147,7 +152,7 @@ def subdomain_fromlist(the_list):
 # 'amount' must be at least as big as the number of subdomains, otherwise the
 # remaining will be left out. Reason: there's no replenishing of the queue when
 # doing wildcard dns checks.
-def fill(d, amount, dom, sub, nsvrs, dns_timeout, results_collector=None):
+def fill(d, amount, dom, sub, nsvrs, dns_timeout, results_collector=None, error_collector=None):
     for i in range(amount):
         # calls next() on the generator to get the next target
         _target = '{}.{}'.format(next(sub), dom)
@@ -156,7 +161,8 @@ def fill(d, amount, dom, sub, nsvrs, dns_timeout, results_collector=None):
             random.choice(nsvrs),
             _target,
             dns_timeout,
-            results_collector)
+            results_collector,
+            error_collector)
         t.start()
         d.append(t)
 
@@ -167,6 +173,7 @@ def do_check_wildcard_dns(dom, nsvrs, dns_timeout):
     # non-existing domain
     wildcard_checklist = deque()
     wildcard_results = deque()
+    wildcard_error = deque()
     try:
         # XXX the second parameter must be at least as big as the number of
         # random subdomains; as there's no replenishing of the queue here, if
@@ -178,13 +185,18 @@ def do_check_wildcard_dns(dom, nsvrs, dns_timeout):
             random_subdomain(),
             nsvrs,
             dns_timeout,
-            wildcard_results)
+            wildcard_results,
+            wildcard_error)
         # wait for the probes to finish
         for el in range(len(wildcard_checklist)):
             t = wildcard_checklist.popleft()
             t.join()
     except KeyboardInterrupt as e:
         raise SystemExit(e)
+
+    # print errors, if any
+    if len(wildcard_error) > 0:
+        log.warn('\n'.join(wildcard_error))
 
     # TODO: parse results, stop if they all have a positive hit
     # for now we simply count the number of hits
@@ -251,7 +263,7 @@ def main(dom,
         try:
             nsvrs.append(socket.gethostbyname(str(ns)))
         except socket.gaierror as e:
-            err.append("[ ] Error when resolving {}: {}".format(ns, e))
+            log.error("[ ] Error when resolving {}: {}".format(ns, e))
     if len(nsvrs) == 0:
         raise RuntimeError("None of the supplied name servers resolve to a valid IP")
     print('[+] Using name servers: {}'.format(nsvrs))
@@ -375,7 +387,12 @@ if __name__ == '__main__':
         )
     )
     parser.add_argument("savefile", default="out.txt")
-    parser.add_argument("-e", '--error-file', default="err.txt")
+    parser.add_argument(
+        "-e",
+        '--error-file',
+        default=None,
+        help="File to collect error messages. Will be overwritten"
+    )
     parser.add_argument(
         "-f", "--force-overwrite", default=False,
         action='store_true')
