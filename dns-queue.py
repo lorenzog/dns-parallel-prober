@@ -148,7 +148,7 @@ def subdomain_fromlist(the_list):
 def fill(d, amount, dom, sub, nsvrs, dns_timeout, results_collector=None):
     for i in range(amount):
         # calls next() on the generator to get the next target
-        _target = '{}.{}'.format(sub.next(), dom)
+        _target = '{}.{}'.format(next(sub), dom)
         t = Prober(
             # pick a dns server
             random.choice(nsvrs),
@@ -248,6 +248,8 @@ def main(dom, max_running_threads, outfile, overwrite, infile, use_nameserver, m
             nsvrs.append(socket.gethostbyname(str(ns)))
         except socket.gaierror as e:
             log.error("[ ] Error when resolving {}: {}".format(ns, e))
+    if len(nsvrs) == 0:
+        raise RuntimeError("None of the supplied name servers resolve to a valid IP")
     log.info('[+] Using name servers: {}'.format(nsvrs))
 
     #
