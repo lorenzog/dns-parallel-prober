@@ -97,10 +97,6 @@ class RealProber(threading.Thread):
                 self.name, self.target, e))
 
 
-# default: use the real prober above, not the simulated one below
-Prober = RealProber
-
-
 class MockProber(threading.Thread):
     def __init__(self, *args, **kwargs):
         super(MockProber, self).__init__()
@@ -409,9 +405,11 @@ if __name__ == '__main__':
         log.setLevel(logging.DEBUG)
         log.debug("Debug logging enabled")
 
+    global Prober
     if args.simulate:
-        global Prober
         Prober = MockProber
+    else:
+        Prober = RealProber
 
     main(
         args.domain,
