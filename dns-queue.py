@@ -75,6 +75,8 @@ class Prober(threading.Thread):
     def run(self):
         resolver = dns.resolver.Resolver()
         resolver.timeout = self.dns_timeout
+        # as per http://comments.gmane.org/gmane.comp.python.dnspython.user/144
+        resolver.lifetime = self.dns_timeout
         try:
             log.debug("{}: Resolving {} with nameserver {}".format(
                 self.name, self.target, self.dns_server))
@@ -225,8 +227,11 @@ def main(dom, max_running_threads, outfile, overwrite, infile, use_nameserver, m
             raise SystemExit(e)
     for ns in _nsvrs:
         log.debug('ns: {}'.format(ns))
-        nsvrs.append(socket.gethostbyname(str(ns)))
-    log.debug('Using name servers: {}'.format(nsvrs))
+        try:
+            nsvrs.append(socket.gethostbyname(str(ns)))
+        except socket.gaierror as e:
+            log.error("[ ] Error when resolving {}: {}".format(ns, e))
+    log.info('[+] Using name servers: {}'.format(nsvrs))
 
     #
     ###
