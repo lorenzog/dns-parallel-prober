@@ -58,7 +58,7 @@ log.setLevel(logging.INFO)
 res = deque()
 
 
-class Prober(threading.Thread):
+class RealProber(threading.Thread):
     def __init__(self, dns_server, target, dns_timeout, results_collector):
         # invoke Thread.__init__
         super(Prober, self).__init__()
@@ -94,6 +94,23 @@ class Prober(threading.Thread):
         except dns.exception.DNSException as e:
             log.debug("Error in thread {} when querying {}: {}".format(
                 self.name, self.target, e))
+
+
+# default: use the real prober above, not the simulated one below
+Prober = RealProber
+
+
+class MockProber(threading.Thread):
+    def __init__(self, *args, **kwargs):
+        super(MockProber, self).__init__()
+        log.info("Mock prober {} initialised with {} {}".format(self.name, *args, **kwargs))
+
+    def run(self):
+        # sleep for a small amount of time, between 0.1 and 0.9
+        _sleep_for = abs(random.normalvariate(0.5, 0.5))
+        log.debug("Mock probe {} sleeping for {}...".format(self.name, _sleep_for))
+        time.sleep(_sleep_for)
+        log.info("Mock prober {} done".format(self.name))
 
 
 def random_subdomain():
@@ -348,11 +365,17 @@ if __name__ == '__main__':
     parser.add_argument(
         '-w', '--no-check-wildcard-dns', action='store_true', default=False,
         help="Skip the check for wildcard DNS")
+    parser.add_argument('--simulate', action='store_true', help="Simulate the probing with random timeouts")
+
     args = parser.parse_args()
 
     if args.debug:
         log.setLevel(logging.DEBUG)
         log.debug("Debug logging enabled")
+
+    if args.simulate:
+        global Prober
+        Prober = MockProber
 
     main(
         args.domain,
