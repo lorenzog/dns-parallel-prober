@@ -361,7 +361,7 @@ def main(dom,
 
     # pre-loading of queue
     print("[+] DNS probing starting...")
-    log.info("Progressbar initialised with {} max".format(total_domains))
+    log.debug("Progressbar initialised with {} max".format(total_domains))
     # NOTE if python complains max_value is not found, you've installed
     # "progressbar" and not "progressbar2"
     bar = progressbar.ProgressBar(max_value=total_domains)

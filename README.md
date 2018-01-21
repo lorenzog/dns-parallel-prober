@@ -14,26 +14,49 @@ Hat tip to: [Kyle F.](https://github.com/radman404) for the original
 idea and to [ZephrFish](https://github.com/ZephrFish) for all
 improvements and testing.
 
-![Demo Screenshot](screenshot.png?raw=true "Usage example")
-
 ### Quickstart
 
-Install the requirements:
+ 1. Install the requirements:
 
-    pip install -r requirements.txt
-    # if you don't want to install stuff as root, do:
-    # virtualenv venv
-    # source venv/bin/activate
-    # pip install -r requirements.txt
+        pip install -r requirements.txt
+        # if you don't want to install stuff as root, do:
+        # virtualenv venv
+        # source venv/bin/activate
+        # pip install -r requirements.txt
 
-Scan all 3-characters subdomains of `example.com` using 100 threads,
-saving the results in `out.txt`:
+ 2. Scan all subdomains of `example.com` using the wordlist
+    `subdomains.txt`, using 100 threads. Save the results in `out.txt`:
+
+        ./dns-queue.py example.com 100 out.txt -i subdomains.txt --simulate
+
+    Remove the `--simulate` part to *really* scan it.
+
+ 3. Example run:
+
+         $ python dns-queue.py example.com 100 out.txt -i subdomains-short.txt --simulate -f -e err.txt
+         [*] SIMULATION IN PROGRESS
+         [+] Output destination: 'out.txt'
+         [+] Output destination will be overwritten.
+         [+] Press CTRL-C to gracefully stop...
+         [+] Finding authoritative name servers for domain...
+         [+] Using name servers: ['199.43.135.53', '199.43.133.53']
+         [+] Checking wildcard DNS...
+         [+] Will search for subdomains contained in 'subdomains-short.txt'
+         [+] Saving results to out.txt...
+         [+] DNS probing starting...
+         73% (147 of 200) |#####################################              | Elapsed Time: 0:00:00 ETA:  0:00:00
+         [+] DNS probing done.
+         [+] Waiting for all threads to finish...
+         [+] Done.
+
+Please note: the `--simulate` flag will return random results. This is by design.
+
+
+## Other features
+
+If you want to bruteforce all subdomains (default length: 3), use:
 
     ./dns-queue.py example.com 100 out.txt
-
-If you want to read the subdomains from a list, do:
-
-    ./dns-queue.py example.com 100 out.txt -i subdomains.txt
 
 By default the script uses the authoritative NS servers for the given
 domain. To use different DNS servers:
@@ -47,6 +70,12 @@ For help and other options (e.g. subdomain length, DNS timeouts, etc.):
 To stop: press `ctrl-c` - it will wait for the last threads to finish
 and *only then* write all results to `out.txt`. Pressing `ctrl-c` twice
 will likely not save anything to disk.
+
+## Demo Video
+[![asciicast](https://asciinema.org/a/16teprhj9hykzrl8hmtyrte2k.png)](https://asciinema.org/a/16teprhj9hykzrl8hmtyrte2k)
+
+
+## FAQs
 
 ### Why 100 threads?
 
@@ -68,7 +97,7 @@ number of threads should not be limited by the number of cores**. In
 other words: each thread will spend most of its time waiting for a DNS
 response; that "idle time" can safely be used by other threads.
 
-### Installation
+### How do I install pip and virtualenv?
 
     git clone .....
     cd dns-parallel-prober
@@ -82,12 +111,7 @@ response; that "idle time" can safely be used by other threads.
     # to deactivate the virtualenv run:
     # deactivate
 
-### Features
-
-- Ability to use raw brute-force of to load a list of subdomains
-- Single Core parallel probing
-
-### Multi-core scenario
+### What if I want to use more cores / Why not using Multiprocess?
 
 If you have *lots* of cores and you can send out data faster than your CPU can fork threads and you want to max out your machine then the simplest solution is:
 
@@ -98,12 +122,11 @@ If you have *lots* of cores and you can send out data faster than your CPU can f
  4. ...
  5. Profit!
 
-Alternatively, fork this repo and write a multiprocessing version. Good
-luck.
+Alternatively, fork this repo and write a multiprocessing version. Good luck.
 
+### Why threads and not processes?
 
-### Demo Video
-[![asciicast](https://asciinema.org/a/16teprhj9hykzrl8hmtyrte2k.png)](https://asciinema.org/a/16teprhj9hykzrl8hmtyrte2k)
+Because in this scenario the bottleneck is the network, not the CPU. I'm happy to be proven wrong! Just fork this repo and submit a pull request and some empirical data to back your claim.
 
 ## Notes
 
@@ -111,6 +134,3 @@ The key thing is that the iteration frequency is dynamically adapted to the depl
 
 File `subdomains.txt` gathered from [research](http://haxpo.nl/haxpo2015ams/wp-content/uploads/sites/4/2015/04/D1-P.-Mason-K.-Flemming-A.-Gill-All-Your-Hostnames-Are-Belong-to-Us.pdf) carried out in 2014/15.
 
-### Why threads and not processes
-
-Because in this scenario the bottleneck is the network, not the CPU. I'm happy to be proven wrong! Just fork this repo and submit a pull request and some empirical data to back your claim.
