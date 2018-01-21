@@ -413,6 +413,7 @@ def main(dom,
             print("\n[+] DNS probing stopped.")
             running = False
         except StopIteration:
+            bar.finish()
             print("\n[+] DNS probing done.")
             running = False
         finally:

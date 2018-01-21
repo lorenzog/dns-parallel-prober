@@ -33,7 +33,8 @@ improvements and testing.
 
  3. Example run:
 
-         $ python dns-queue.py example.com 100 out.txt -i subdomains-short.txt --simulate -f -e err.txt
+         $ python3 dns-queue.py example.com 100 out.txt -i
+         subdomains-short.txt --simulate -f -e err.txt
          [*] SIMULATION IN PROGRESS
          [+] Output destination: 'out.txt'
          [+] Output destination will be overwritten.
@@ -41,13 +42,18 @@ improvements and testing.
          [+] Finding authoritative name servers for domain...
          [+] Using name servers: ['199.43.135.53', '199.43.133.53']
          [+] Checking wildcard DNS...
-         [+] Will search for subdomains contained in 'subdomains-short.txt'
+         [+] Will search for subdomains contained in
+         'subdomains-short.txt'
          [+] Saving results to out.txt...
          [+] DNS probing starting...
-         73% (147 of 200) |#####################################              | Elapsed Time: 0:00:00 ETA:  0:00:00
+         100% (200 of 200)
+         |##################################################| Elapsed
+         Time: 0:00:01 Time: 0:00:01
+
          [+] DNS probing done.
          [+] Waiting for all threads to finish...
          [+] Done.
+
 
 Please note: the `--simulate` flag will return random results. This is by design.
 
@@ -57,6 +63,10 @@ Please note: the `--simulate` flag will return random results. This is by design
 If you want to bruteforce all subdomains (default length: 3), use:
 
     ./dns-queue.py example.com 100 out.txt
+
+If you have a very fast upstream and don't mind flooding DNS servers, use 2000 threads:
+
+    ./dns-queue.py example.com 2000 out.txt
 
 By default the script uses the authoritative NS servers for the given
 domain. To use different DNS servers:
@@ -70,9 +80,6 @@ For help and other options (e.g. subdomain length, DNS timeouts, etc.):
 To stop: press `ctrl-c` - it will wait for the last threads to finish
 and *only then* write all results to `out.txt`. Pressing `ctrl-c` twice
 will likely not save anything to disk.
-
-## Demo Video
-[![asciicast](https://asciinema.org/a/16teprhj9hykzrl8hmtyrte2k.png)](https://asciinema.org/a/16teprhj9hykzrl8hmtyrte2k)
 
 
 ## FAQs
@@ -127,6 +134,12 @@ Alternatively, fork this repo and write a multiprocessing version. Good luck.
 ### Why threads and not processes?
 
 Because in this scenario the bottleneck is the network, not the CPU. I'm happy to be proven wrong! Just fork this repo and submit a pull request and some empirical data to back your claim.
+
+## Demo Video
+
+This is a demo of an older version:
+
+[![asciicast](https://asciinema.org/a/16teprhj9hykzrl8hmtyrte2k.png)](https://asciinema.org/a/16teprhj9hykzrl8hmtyrte2k)
 
 ## Notes
 
