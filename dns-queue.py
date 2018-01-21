@@ -111,14 +111,14 @@ class RealProber(threading.Thread):
 class MockProber(threading.Thread):
     def __init__(self, *args, **kwargs):
         super(MockProber, self).__init__()
-        print("Mock prober {} initialised with {} {}".format(self.name, *args, **kwargs))
+        log.debug("Mock prober {} initialised with {} {}".format(self.name, *args, **kwargs))
 
     def run(self):
         # sleep for a small amount of time, between 0.1 and 0.9
         _sleep_for = abs(random.normalvariate(0.5, 0.5))
         log.debug("Mock probe {} sleeping for {}...".format(self.name, _sleep_for))
         time.sleep(_sleep_for)
-        print("Mock prober {} done".format(self.name))
+        log.debug("Mock prober {} done".format(self.name))
 
 
 def random_subdomain():
@@ -315,8 +315,17 @@ def main(dom,
         total_domains = subdomain_fromlist_len(infile)
         print("[+] Will search for subdomains contained in '{}'".format(infile))
 
+    # TODO
+    # trigger for logging; set every iteration loop, wait()ed for 
+    # in the logging thread
+    # log_event = threading.Event()
+    # logging_thread = LoggingThread()
+
     # pre-loading of queue
     print("[+] DNS probing starting...")
+    log.info("Progressbar initialised with {} max".format(total_domains))
+    # NOTE if python complains max_value is not found, you've installed
+    # "progressbar" and not "progressbar2"
     bar = progressbar.ProgressBar(max_value=total_domains)
     try:
         # fill the queue ip to max for now
@@ -359,6 +368,9 @@ def main(dom,
             fill(d, delta, dom, sub, nsvrs, dns_timeout)
             previous_len = len(d)
 
+            # TODO wakeup the logging thread for disk and output
+            # log_event.set()
+
         except KeyboardInterrupt:
             print("\n[+] DNS probing stopped.")
             running = False
@@ -375,6 +387,8 @@ def main(dom,
         t = d.popleft()
         t.join()
 
+    # TODO move into a thread to take care of output and file writing
+    # XXX use | tee? 
     # ok, save output and error
     if outfile is not None:
         print("[+] Saving {} results to {}...".format(len(res), outfile))
