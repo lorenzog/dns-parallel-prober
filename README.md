@@ -33,8 +33,7 @@ improvements and testing.
 
  3. Example run:
 
-         $ python3 dns-queue.py example.com 100 out.txt -i
-         subdomains-short.txt --simulate -f -e err.txt
+         $ python3 dns-queue.py example.com 100 out.txt -i subdomains-short.txt --simulate -f -e err.txt
          [*] SIMULATION IN PROGRESS
          [+] Output destination: 'out.txt'
          [+] Output destination will be overwritten.
