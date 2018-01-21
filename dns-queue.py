@@ -65,7 +65,7 @@ err = deque()
 class RealProber(threading.Thread):
     def __init__(self, dns_server, target, dns_timeout, results_collector, error_collector):
         # invoke Thread.__init__
-        super(Prober, self).__init__()
+        super(RealProber, self).__init__()
         self.target = target
         self.dns_server = dns_server
         self.dns_timeout = dns_timeout
@@ -108,9 +108,9 @@ class RealProber(threading.Thread):
                 self.name, self.target, e))
 
 
-class MockProber(threading.Thread):
+class MockProber(RealProber):
     def __init__(self, *args, **kwargs):
-        super(MockProber, self).__init__()
+        super(MockProber, self).__init__(*args, **kwargs)
         log.debug("Mock prober {} initialised with {} {}".format(self.name, *args, **kwargs))
 
     def run(self):
@@ -118,7 +118,40 @@ class MockProber(threading.Thread):
         _sleep_for = abs(random.normalvariate(0.5, 0.5))
         log.debug("Mock probe {} sleeping for {}...".format(self.name, _sleep_for))
         time.sleep(_sleep_for)
+        if random.random() > 0.7:
+            log.debug("Mock probe {} found a result.")
+            res.append("{} | {}".format(self.target, '127.0.0.1'))
         log.debug("Mock prober {} done".format(self.name))
+
+
+class LoggingThread(threading.Thread):
+    """Takes care of writing to disk as new hosts are discovered"""
+    def __init__(self, log_event, outfile):
+        super(LoggingThread, self).__init__()
+        self.log_event = log_event
+        self.outfile = None
+        if outfile is not None:
+            print("[+] Saving {} results to {}...".format(len(res), outfile))
+            self.outfile = open(outfile, 'w')
+        self.running = True
+
+    def run(self):
+        # old code
+        # if outfile is not None:
+        #     print("[+] Saving {} results to {}...".format(len(res), outfile))
+        #     with open(outfile, 'w') as f:
+        #         for r in res:
+        #             f.write('{}\n'.format(r))
+        # else:
+        #     print('\n'.join(res))
+        while self.running:
+            self.log_event.wait()
+            while len(res) > 0:
+                _el = res.popleft()
+                if self.outfile is not None:
+                    self.outfile.write('{}\n'.format(_el))
+                # print('{}'.format(_el))
+            self.outfile.flush()
 
 
 def random_subdomain():
@@ -315,11 +348,11 @@ def main(dom,
         total_domains = subdomain_fromlist_len(infile)
         print("[+] Will search for subdomains contained in '{}'".format(infile))
 
-    # TODO
     # trigger for logging; set every iteration loop, wait()ed for 
     # in the logging thread
-    # log_event = threading.Event()
-    # logging_thread = LoggingThread()
+    log_event = threading.Event()
+    logging_thread = LoggingThread(log_event, outfile)
+    logging_thread.start()
 
     # pre-loading of queue
     print("[+] DNS probing starting...")
@@ -368,8 +401,8 @@ def main(dom,
             fill(d, delta, dom, sub, nsvrs, dns_timeout)
             previous_len = len(d)
 
-            # TODO wakeup the logging thread for disk and output
-            # log_event.set()
+            # wakeup the logging thread for disk and output
+            log_event.set()
 
         except KeyboardInterrupt:
             print("\n[+] DNS probing stopped.")
@@ -387,16 +420,11 @@ def main(dom,
         t = d.popleft()
         t.join()
 
-    # TODO move into a thread to take care of output and file writing
-    # XXX use | tee? 
-    # ok, save output and error
-    if outfile is not None:
-        print("[+] Saving {} results to {}...".format(len(res), outfile))
-        with open(outfile, 'w') as f:
-            for r in res:
-                f.write('{}\n'.format(r))
-    else:
-        print('\n'.join(res))
+    # wake up and kill the logging thread
+    # it should be stuck in the wait() loop..
+    logging_thread.running = False
+    # write the last results
+    log_event.set()
 
     if errfile is not None:
         # default: overwrites error file
