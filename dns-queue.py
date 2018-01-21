@@ -131,7 +131,7 @@ class LoggingThread(threading.Thread):
         self.log_event = log_event
         self.outfile = None
         if outfile is not None:
-            print("[+] Saving {} results to {}...".format(len(res), outfile))
+            print("[+] Saving results to {}...".format(outfile))
             self.outfile = open(outfile, 'w')
         self.running = True
 
@@ -144,14 +144,19 @@ class LoggingThread(threading.Thread):
         #             f.write('{}\n'.format(r))
         # else:
         #     print('\n'.join(res))
+        if self.outfile is None:
+            log.debug("Nothing to do for the logging thread...")
+            return
+
         while self.running:
             self.log_event.wait()
             while len(res) > 0:
                 _el = res.popleft()
-                if self.outfile is not None:
-                    self.outfile.write('{}\n'.format(_el))
+                self.outfile.write('{}\n'.format(_el))
                 # print('{}'.format(_el))
             self.outfile.flush()
+
+        self.outfile.close()
 
 
 def random_subdomain():
@@ -507,7 +512,7 @@ if __name__ == '__main__':
     global Prober
     if args.simulate:
         Prober = MockProber
-        args.savefile = None
+        print('[*] SIMULATION IN PROGRESS')
     else:
         Prober = RealProber
 
