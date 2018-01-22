@@ -76,9 +76,7 @@ For help and other options (e.g. subdomain length, DNS timeouts, etc.):
 
     ./dns-queue.py -h
 
-To stop: press `ctrl-c` - it will wait for the last threads to finish
-and *only then* write all results to `out.txt`. Pressing `ctrl-c` twice
-will likely not save anything to disk.
+To stop: press `ctrl-c` - it will wait for the last threads to finish before exiting.
 
 
 ## FAQs
