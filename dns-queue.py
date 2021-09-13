@@ -1,5 +1,7 @@
 #!/usr/bin/env python3
 # Updates from LorenzoG 
+# 2021 - ZephrFish Added colours functions
+
 """
 DNS Parallel Prober
 ===================
@@ -9,6 +11,7 @@ Given a domain name, probes its subdomains either by brute-force or from a list.
 See `README.md` for more information and usage.
 
 """
+
 from __future__ import print_function
 import argparse
 from collections import deque
@@ -36,6 +39,12 @@ DEFAULT_DNS_TIMEOUT = 5
 # for checking whether the DNS is a wildcard DNS...
 RANDOM_SUBDOMAINS = 5
 RANDOM_SUBDOMAINS_LENGTH = 6
+
+# Colours
+def prRed(skk): print("\033[91m {}\033[00m" .format(skk))
+def prGreen(skk): print("\033[92m {}\033[00m" .format(skk))
+def prCyan(skk): print("\033[96m {}\033[00m" .format(skk))
+def prYellow(skk): print("\033[93m {}\033[00m" .format(skk))
 
 # valid domain names allow ASCII letters, digits and hyphen (and are case
 # insensitive)
@@ -132,7 +141,7 @@ class LoggingThread(threading.Thread):
         self.log_event = log_event
         self.outfile = None
         if outfile is not None:
-            print("[+] Saving results to {}...".format(outfile))
+            prGreen("[+] Saving results to {}...".format(outfile))
             self.outfile = open(outfile, 'w')
         self.running = True
 
@@ -221,7 +230,7 @@ def fill(d, amount, dom, sub, nsvrs, dns_timeout, results_collector=None, error_
 
 
 def do_check_wildcard_dns(dom, nsvrs, dns_timeout):
-    print("[+] Checking wildcard DNS...")
+    prGreen("[+] Checking wildcard DNS...")
     # a wildcard DNS returns the same IP for every possible query of a
     # non-existing domain
     wildcard_checklist = deque()
@@ -250,6 +259,7 @@ def do_check_wildcard_dns(dom, nsvrs, dns_timeout):
     # print errors, if any
     if len(wildcard_error) > 0:
         log.warn('\n'.join(wildcard_error))
+        prRed('\n'.join(wildcard_error))
 
     # TODO: parse results, stop if they all have a positive hit
     # for now we simply count the number of hits
@@ -283,7 +293,7 @@ def main(dom,
                 "Specified file '{}' exists and overwrite "
                 "option (-f) not set".format(outfile))
         else:
-            print("[+] Output destination will be overwritten.")
+            prRed("[+] Output destination will be overwritten.")
     # print(
     #     "-: queue ckeck interval increased by {}%\n.: "
     #     "no change\n".format(INCREASE_PERCENT))
@@ -292,7 +302,7 @@ def main(dom,
     ###
     #
 
-    print("[+] Press CTRL-C to gracefully stop...")
+    prCyan("[+] Press CTRL-C to gracefully stop...")
 
     #
     ###
@@ -301,11 +311,11 @@ def main(dom,
 
     nsvrs = list()
     if use_nameserver:
-        print("[+] Using user-supplied name servers...")
+        prCyan("[+] Using user-supplied name servers...")
         _nsvrs = use_nameserver
     else:
         try:
-            print("[+] Finding authoritative name servers for domain...")
+            prCyan("[+] Finding authoritative name servers for domain...")
             _nsvrs = dns.resolver.query(args.domain, 'NS')
         except dns.exception as e:
             raise SystemExit(e)
@@ -319,7 +329,7 @@ def main(dom,
             log.error("[ ] Error when resolving {}: {}".format(ns, e))
     if len(nsvrs) == 0:
         raise RuntimeError("None of the supplied name servers resolve to a valid IP")
-    print('[+] Using name servers: {}'.format(nsvrs))
+    prCyan('[+] Using name servers: {}'.format(nsvrs))
 
     #
     ###
@@ -346,13 +356,13 @@ def main(dom,
         # use the inbuilt subdomain generator
         sub = subdomain_gen(max_subdomain_len)
         total_domains = subdomain_len(max_subdomain_len)
-        print("[+] Will search for subdomains made of all possible {}-characters permutations".format(max_subdomain_len))
+        prGreen("[+] Will search for subdomains made of all possible {}-characters permutations".format(max_subdomain_len))
     else:
         if not os.path.exists(infile):
             raise SystemExit("{} not found".format(infile))
         sub = subdomain_fromlist(infile)
         total_domains = subdomain_fromlist_len(infile)
-        print("[+] Will search for subdomains contained in '{}'".format(infile))
+        prGreen("[+] Will search for subdomains contained in '{}'".format(infile))
 
     # trigger for logging; set every iteration loop, wait()ed for 
     # in the logging thread
@@ -411,16 +421,16 @@ def main(dom,
             log_event.set()
 
         except KeyboardInterrupt:
-            print("\n[+] DNS probing stopped.")
+            prCyan("\n[+] DNS probing stopped.")
             running = False
         except StopIteration:
             bar.finish()
-            print("\n[+] DNS probing done.")
+            prGreen("\n[+] DNS probing done.")
             running = False
         finally:
             sys.stdout.flush()
 
-    print("[+] Waiting for all threads to finish...")
+    prYellow("[+] Waiting for all threads to finish...")
     # waiting for all threads to finish, popping them one by one and join()
     # each...
     for el in range(len(d)):
@@ -514,7 +524,7 @@ if __name__ == '__main__':
     global Prober
     if args.simulate:
         Prober = MockProber
-        print('[*] SIMULATION IN PROGRESS')
+        prRed('[*] SIMULATION IN PROGRESS')
     else:
         Prober = RealProber
 
