@@ -102,7 +102,7 @@ class RealProber(threading.Thread):
                 self.name, self.target, self.dns_server))
             # it's a list
             resolver.nameservers = [self.dns_server, ]
-            answer = resolver.query(self.target)
+            answer =  dns.resolver.Resolver.resolve(self.target)
             for data in answer:
                 out = '{} | {}'.format(self.target, data)
                 self.res.append(out)
@@ -316,7 +316,7 @@ def main(dom,
     else:
         try:
             prCyan("[+] Finding authoritative name servers for domain...")
-            _nsvrs = dns.resolver.query(args.domain, 'NS')
+            _nsvrs = dns.resolver.resolve(args.domain, 'NS')
         except dns.exception as e:
             raise SystemExit(e)
         except KeyboardInterrupt as e:
