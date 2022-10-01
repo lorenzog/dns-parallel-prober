@@ -102,7 +102,7 @@ class RealProber(threading.Thread):
                 self.name, self.target, self.dns_server))
             # it's a list
             resolver.nameservers = [self.dns_server, ]
-            answer =  dns.resolver.Resolver.resolve(self.target)
+            answer =  dns.resolver.resolve(self.target)
             for data in answer:
                 out = '{} | {}'.format(self.target, data)
                 self.res.append(out)
